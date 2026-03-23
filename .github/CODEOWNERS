@@ -1,0 +1,11 @@
+# Default owners for the repository
+* @whitewhiteqq
+
+# CI and repository governance
+/.github/ @whitewhiteqq
+
+# Package source and test assets
+/src/ @whitewhiteqq
+/tests/ @whitewhiteqq
+/skills/ @whitewhiteqq
+/agents/ @whitewhiteqq

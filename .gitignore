@@ -1,0 +1,47 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.ruff_cache/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude local settings
+.claude/settings.json
+.claude/settings.local.json
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+tests/reports/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.xml
+
+# uv.lock is committed for reproducibility
