@@ -11,7 +11,7 @@
       "name": "claude-aws-test-plugin",
       "source": "./",
       "description": "Generates E2E, integration, contract, performance, and load tests by reading actual handler code.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

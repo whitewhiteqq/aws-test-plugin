@@ -1,6 +1,6 @@
 [project]
 name = "aws-test-plugin"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI-powered test generation skills for AWS Python projects — works with Claude Code, GitHub Copilot, and Codex"
 readme = "README.md"
 requires-python = ">=3.10"

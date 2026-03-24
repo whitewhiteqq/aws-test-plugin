@@ -1,7 +1,7 @@
 {
   "name": "aws-test-plugin",
   "description": "AI-powered test generation skills for AWS Python projects — Lambda, API Gateway, Step Functions, and Batch. Generates E2E, integration, contract, performance, and load tests by reading actual handler code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "whitewhiteqq"
   },
