@@ -130,7 +130,7 @@ Principles:
 - Default to `Rebase and merge` for pull requests into `develop` so that every individual commit — and its reasoning — is preserved in the public history. Use `Squash and merge` only when the branch contains exploratory or fixup commits that add no lasting value; when squashing, the single merge commit must capture all essential context from the branch (see Commit Message Style).
 - Avoid GitHub merge commits for routine pull requests because they create noisy branch divergence and a less readable graph.
 - Promote releases from `develop` to `main` with a maintainer-run fast-forward update so both branches share identical history.
-- Tag every release on `main` with an annotated tag (`git tag -a v0.1.0 -m "..."`). Pushing that tag is the PyPI publish trigger, so releases follow one path only: feature branch -> `develop` -> `main` -> version tag -> PyPI. The tag message should summarize what shipped, key decisions made since the prior release, and any known limitations. Annotated tags are git objects — they survive cloning and forking, unlike GitHub-only release notes.
+- Tag every release on `main` with an annotated tag (`git tag -a v0.1.0 -m "..."`). Then create a GitHub Release targeting that tag — creating the Release is the PyPI publish trigger. Releases follow one path only: feature branch -> `develop` -> `main` -> version tag -> GitHub Release -> PyPI. The tag message should summarize what shipped, key decisions made since the prior release, and any known limitations. Annotated tags are git objects — they survive cloning and forking, unlike GitHub-only release notes.
 
 ## Commit Message Style
 
@@ -267,7 +267,7 @@ must also land in the commit messages that enter `develop`.
 6. Submit a pull request to `develop` using `.github/pull_request_template.md`
 7. Merge pull requests with `Rebase and merge` (preferred — preserves individual commit reasoning) or `Squash and merge` (only when intermediate commits are noise); do not use merge commits
 8. Release `develop` to `main` with a maintainer-run fast-forward update after CI passes on `develop`; use `git merge --ff-only develop` from a local checkout of `main` so `main` advances without rewriting or duplicating commit history
-9. Create and push an annotated version tag from `main`; this tag is the only supported trigger for publishing to PyPI
+9. Create and push an annotated version tag from `main`, then create a GitHub Release targeting that tag; the Release is the PyPI publish trigger
 10. Review responsibility is assigned through `.github/CODEOWNERS`
 
 ## Maintainer Notes
@@ -275,12 +275,12 @@ must also land in the commit messages that enter `develop`.
 - Protect `main` and `develop` against direct pushes.
 - Enable `Rebase and merge` (preferred) and `Squash and merge` (fallback) for contributor pull requests into `develop`. Disable `Create a merge commit` to enforce linear history.
 - Do not rely on GitHub merge buttons for release promotion to `main`; use a local `git merge --ff-only develop` followed by `git push origin main`.
-- Do not publish to PyPI from a feature branch or from `develop`. PyPI releases are created only after `develop` has been fast-forwarded into `main` and an annotated `v*` tag has been pushed from that `main` commit.
+- Do not publish to PyPI from a feature branch or from `develop`. PyPI releases are triggered only by creating a GitHub Release after `develop` has been fast-forwarded into `main` and an annotated `v*` tag has been pushed from that `main` commit.
 - Configure `develop` branch protection or rulesets to require linear history and the CI checks `Test (Python 3.10)`, `Test (Python 3.11)`, `Test (Python 3.12)`, `Test (Python 3.13)`, `Lint`, `Type Check`, and `Security`.
 - Configure `main` so only maintainers can update it, with no force pushes or deletions.
 - Keep release updates focused. Avoid mixing repository governance, experiments, and product changes in the same release.
 - Do not rewrite shared branch history unless there is a clear operational reason and the change is communicated.
-- After each fast-forward update to `main`, create an annotated tag and push it to publish that version to PyPI:
+- After each fast-forward update to `main`, create an annotated tag, push it, and then create a GitHub Release targeting that tag to publish to PyPI:
   ```bash
   git tag -a v<VERSION> -m "v<VERSION>: <one-line theme>
 

@@ -267,7 +267,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## Review Flow
 
 - Pull requests should target `develop`; maintainers promote `develop` to `main` with a fast-forward release update.
-- PyPI publishing happens only from an annotated `v*` tag pushed from `main` after that promotion.
+- PyPI publishing is triggered by creating a GitHub Release targeting an annotated `v*` tag on `main`.
 - Review ownership is defined in `.github/CODEOWNERS`.
 - Pull request expectations are defined in `.github/pull_request_template.md`.
 

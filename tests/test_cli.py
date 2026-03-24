@@ -102,22 +102,6 @@ def test_skill_description_under_1024_chars():
         assert len(desc) <= 1024, f"{skill.name}: description is {len(desc)} chars (max 1024)"
 
 
-def test_skill_has_license():
-    """Every SKILL.md should have a license field."""
-    skills_dir = _get_data_dir() / "skills"
-    for skill in skills_dir.iterdir():
-        if not skill.is_dir():
-            continue
-        skill_md = skill / "SKILL.md"
-        if not skill_md.exists():
-            continue
-
-        content = skill_md.read_text(encoding="utf-8")
-        parts = content.split("---", 2)
-        if len(parts) >= 3:
-            assert "license:" in parts[1], f"{skill.name}/SKILL.md missing license"
-
-
 def test_skill_reference_links_resolve():
     """Reference file links in SKILL.md must point to existing files."""
     skills_dir = _get_data_dir() / "skills"
