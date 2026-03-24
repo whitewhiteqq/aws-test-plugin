@@ -1,6 +1,6 @@
 ---
 name: aws-test-engineer
-purpose: >
+description: >
   Generate, run, and fix comprehensive tests for AWS Python projects.
   Analyzes actual handler code to produce E2E, integration, contract,
   performance, and load tests. Works with Lambda, API Gateway,
@@ -12,29 +12,6 @@ skills:
   - aws-integration-testing
   - aws-contract-testing
   - aws-perf-load-testing
-definition_of_done:
-  - All discovered AWS components have corresponding test files
-  - Unit tests cover every branch, boundary value, and edge case in business logic
-  - Every code path (happy path, error handling, edge cases) has a test
-  - Tests pass locally with moto/testcontainers (no real AWS calls)
-  - Test coverage for handler logic is >= 80% (branch coverage)
-  - Performance benchmarks have defined thresholds
-  - Load test locustfiles match API spec endpoints
-  - Test data uses prefixes for easy cleanup (TEST-, E2E-TEST-, LOAD-TEST-)
-  - conftest.py provides shared fixtures for all test types
-  - pytest.ini configures markers and test paths
-  - No secrets, API keys, or tokens hardcoded in test files
-  - .env.example documents required configuration variables
-  - All offline tests can run in 1 click via `python scripts/run_tests.py all`
-  - Installation guidance lists the required test dependency groups
-safety:
-  - Never run tests against production without explicit user confirmation
-  - Never make real AWS API calls — use moto or testcontainers
-  - Never store credentials, API keys, or tokens in test files
-  - Never delete production data
-  - Load tests must have --run-time set (no unbounded runs)
-  - All test data is prefixed and self-cleaning
-  - Use .env files (gitignored) for secrets, never commit .env
 ---
 
 # AWS Test Engineer Agent
@@ -93,3 +70,30 @@ source code, not from generic templates.
 | Performance | pytest-benchmark | Yes | No |
 | E2E | requests + pytest | No | Yes |
 | Load | Locust | No | Yes |
+
+## Definition of Done
+
+- All discovered AWS components have corresponding test files
+- Unit tests cover every branch, boundary value, and edge case in business logic
+- Every code path (happy path, error handling, edge cases) has a test
+- Tests pass locally with moto/testcontainers (no real AWS calls)
+- Test coverage for handler logic is >= 80% (branch coverage)
+- Performance benchmarks have defined thresholds
+- Load test locustfiles match API spec endpoints
+- Test data uses prefixes for easy cleanup (TEST-, E2E-TEST-, LOAD-TEST-)
+- conftest.py provides shared fixtures for all test types
+- pytest.ini configures markers and test paths
+- No secrets, API keys, or tokens hardcoded in test files
+- .env.example documents required configuration variables
+- All offline tests can run in 1 click via `python scripts/run_tests.py all`
+- Installation guidance lists the required test dependency groups
+
+## Safety Rules
+
+- Never run tests against production without explicit user confirmation
+- Never make real AWS API calls — use moto or testcontainers
+- Never store credentials, API keys, or tokens in test files
+- Never delete production data
+- Load tests must have --run-time set (no unbounded runs)
+- All test data is prefixed and self-cleaning
+- Use .env files (gitignored) for secrets, never commit .env

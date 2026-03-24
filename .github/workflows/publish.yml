@@ -1,16 +1,38 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
   id-token: write  # Required for trusted publishing
 
 jobs:
+  verify-release-tag:
+    name: Verify release tag is on main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is reachable from main
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          release_commit=$(git rev-list -n 1 "$GITHUB_REF")
+          if ! git merge-base --is-ancestor "$release_commit" "origin/main"; then
+            echo "Release tags must point to a commit on origin/main."
+            exit 1
+          fi
+
   build:
     name: Build distribution
+    needs: verify-release-tag
     runs-on: ubuntu-latest
 
     steps:
