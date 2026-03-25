@@ -12,11 +12,18 @@ uv sync --locked
 # Run all tests
 uv run pytest tests/ -v
 
-# Lint
+# Lint — check mode (CI)
 uv run ruff check src tests
 uv run ruff format --check src tests
 
-# Type checking
+# Lint — fix mode (local dev: always fix before format)
+uv run ruff check --fix src tests
+uv run ruff format src tests
+
+# Type checking — ty is the primary checker (fast, replaces mypy)
+uvx ty check src
+
+# Type checking — mypy (secondary; kept for compatibility)
 uv run mypy src
 
 # Security scans

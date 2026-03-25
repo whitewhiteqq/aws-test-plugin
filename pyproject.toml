@@ -110,6 +110,16 @@ warn_unused_configs = true
 show_error_codes = true
 pretty = true
 
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["src/**/*.py"]
+
+[tool.ty.rules]
+# Promoted to error once ty reaches feature parity with mypy
+possibly-unresolved-reference = "warn"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

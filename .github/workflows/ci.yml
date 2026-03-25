@@ -136,7 +136,7 @@ jobs:
   typecheck-ty:
     name: Type Check (ty)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: true  # ty is non-blocking while stabilising; promote to blocking when mypy is removed
 
     steps:
       - name: Checkout
@@ -144,12 +144,7 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --locked
 
       - name: Run ty
-        run: uvx ty check src
+        # uvx manages its own isolated env — no uv sync needed
+        run: uvx ty check src --python-version 3.12
