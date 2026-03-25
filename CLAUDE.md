@@ -37,6 +37,50 @@ uv lock --check
 uv lock
 ```
 
+## Change Workflow
+
+Every change, regardless of size, follows this sequence:
+
+1. **Branch** — `git checkout -b feat/<name>` or `fix/<name>` from `develop`
+2. **Implement** — make the change
+3. **Docs review** — ask: does this change affect README.md, CONTRIBUTING.md, or CLAUDE.md?
+   - CI/CD changes → update CLAUDE.md (Commands section) if any command changes
+   - Dependency changes → update README.md and CONTRIBUTING.md if setup steps change
+   - Workflow/process changes → update CLAUDE.md (relevant section)
+   - `src/` public API changes → update README.md usage examples
+4. **Version bump** — see Version Policy below
+5. **Local checks** — must all pass before committing:
+   ```bash
+   uv lock --check
+   uv run ruff check src tests
+   uv run ruff format --check src tests
+   uv run ty check src        # or: uv run mypy src
+   uv run pytest tests/ -v
+   uv run bandit -q -c pyproject.toml -r src
+   ```
+6. **Commit** — conventional commit with full body for non-trivial changes
+7. **PR → develop → main** — follow Branch Strategy below
+
+## Version Policy
+
+Bump the version in `pyproject.toml` (and run `uv lock`) only when the
+**installed package changes**:
+
+| Change type | Bump? |
+|---|---|
+| `src/aws_test_plugin/` code change | **Yes** |
+| Runtime dep added/removed/changed (`[project.dependencies]`) | **Yes** |
+| Dev dep change (`[dependency-groups] dev`) | No |
+| CI/CD workflow change (`.github/`) | No |
+| Docs only (`README.md`, `CONTRIBUTING.md`, `CLAUDE.md`) | No |
+| Tool config (`[tool.ruff]`, `[tool.ty]`, etc.) | No |
+| `skills/`, `agents/` content | No |
+
+Version follows [Semantic Versioning](https://semver.org/):
+- **patch** (0.1.x) — bug fixes, no API change
+- **minor** (0.x.0) — new backward-compatible features
+- **major** (x.0.0) — breaking changes
+
 ## Pre-Commit Enforcement
 
 **Always run `uv lock --check` before committing.**
