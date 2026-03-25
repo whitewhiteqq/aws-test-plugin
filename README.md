@@ -203,7 +203,9 @@ This plugin doesn't fill in templates — it reads your **actual code** and gene
 aws-test-plugin/
 ├── .claude-plugin/
 │   └── plugin.json               # Claude Code plugin manifest
+├── CLAUDE.md                     # Agent instructions (Claude Code / Copilot)
 ├── pyproject.toml                # uv/pip package config
+├── uv.lock                       # Locked dependency graph (never stale)
 ├── LICENSE                       # Apache 2.0
 ├── README.md
 ├── CONTRIBUTING.md
@@ -244,7 +246,7 @@ git clone https://github.com/whitewhiteqq/aws-test-plugin.git
 cd aws-test-plugin
 
 # Install with uv (creates .venv automatically)
-uv sync
+uv sync --locked
 
 # Run tests
 uv run pytest tests/ -v
@@ -259,6 +261,12 @@ uv run mypy src/
 # Security scans
 uv run bandit -q -c pyproject.toml -r src/
 uv run pip-audit
+
+# Verify lockfile is up to date (must pass before any commit)
+uv lock --check
+
+# Regenerate lockfile when pyproject.toml changes
+uv lock
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.

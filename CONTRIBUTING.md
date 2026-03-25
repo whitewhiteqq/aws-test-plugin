@@ -12,7 +12,7 @@ cd aws-test-plugin
 # macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install with dev dependencies
-uv sync
+uv sync --locked
 
 # Run tests
 uv run pytest tests/ -v
@@ -27,12 +27,36 @@ uv run mypy src
 # Security scans
 uv run bandit -q -c pyproject.toml -r src
 uv run pip-audit
+
+# Verify lockfile is up to date (must pass before any commit)
+uv lock --check
+
+# Regenerate lockfile when pyproject.toml changes
+uv lock
 ```
+
+## Lockfile Discipline
+
+`uv.lock` must never be stale in the repository. The CI `lockfile` job runs
+`uv lock --check` on every push and pull request; a stale lockfile fails the
+entire pipeline before any test or lint job runs.
+
+**Rule: run `uv lock --check` before every commit. If it reports the lockfile
+needs updating, run `uv lock`, stage `uv.lock`, and include it in the same
+commit as the `pyproject.toml` change.**
+
+Triggers that require `uv lock`:
+- Any edit to `pyproject.toml` (adding, removing, or bumping a dependency)
+- Any change to the `requires-python` field or Python version target
+- Pulling changes from `origin` that modify `pyproject.toml`
 
 ## Project Structure
 
 ```
 aws-test-plugin/
+├── CLAUDE.md                       # Agent instructions (Claude Code / Copilot)
+├── pyproject.toml                  # Project metadata and deps
+├── uv.lock                         # Locked dependency graph (never stale)
 ├── skills/                         # Skill definitions (auto-discovered by npx skills add)
 │   ├── aws-test-orchestrator/SKILL.md
 │   ├── aws-e2e-testing/            # SKILL.md + references/
@@ -263,7 +287,7 @@ must also land in the commit messages that enter `develop`.
 2. Create a feature branch from `develop`: `git checkout -b feat/new-pattern origin/develop`
 3. Make your changes
 4. Rebase your branch on the latest `origin/develop` before opening or updating the pull request
-5. Run local quality checks: `uv run pytest tests/ -v`, `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run mypy src`, `uv run bandit -q -c pyproject.toml -r src`, and `uv run pip-audit`
+5. Run local quality checks: `uv lock --check` (regenerate with `uv lock` if stale), `uv run pytest tests/ -v`, `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run mypy src`, `uv run bandit -q -c pyproject.toml -r src`, and `uv run pip-audit`
 6. Submit a pull request to `develop` using `.github/pull_request_template.md`
 7. Merge pull requests with `Rebase and merge` (preferred — preserves individual commit reasoning) or `Squash and merge` (only when intermediate commits are noise); do not use merge commits
 8. Release `develop` to `main` with a maintainer-run fast-forward update after CI passes on `develop`; use `git merge --ff-only develop` from a local checkout of `main` so `main` advances without rewriting or duplicating commit history
