@@ -29,7 +29,8 @@ uv run mypy src
 
 # Security scans
 uv run bandit -q -c pyproject.toml -r src
-uv run pip-audit
+# CVE-2026-4539: pygments ReDoS (local-only, no fix yet) — remove ignore once patched
+uv run pip-audit --ignore-vuln CVE-2026-4539
 
 # Verify lockfile is up to date (must pass before any commit)
 uv lock --check

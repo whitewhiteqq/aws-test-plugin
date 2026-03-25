@@ -117,7 +117,12 @@ jobs:
         run: uv run bandit -q -c pyproject.toml -r src
 
       - name: Run pip-audit
-        run: uv run pip-audit
+        run: |
+          # CVE-2026-4539: ReDoS in pygments AdlLexer (archetype.py).
+          # Local-access-only; no fix version exists yet; pygments is a
+          # transitive dep of bandit/rich and is not shipped to users.
+          # Remove this ignore once a patched pygments is released.
+          uv run pip-audit --ignore-vuln CVE-2026-4539
 
       - name: Audit .pth files
         run: |

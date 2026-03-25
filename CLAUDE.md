@@ -28,7 +28,8 @@ uv run mypy src
 
 # Security scans
 uv run bandit -q -c pyproject.toml -r src
-uv run pip-audit
+# CVE-2026-4539: pygments ReDoS (local-only, no fix yet) — remove ignore once patched
+uv run pip-audit --ignore-vuln CVE-2026-4539
 
 # Verify lockfile is up to date (must pass before any commit)
 uv lock --check
@@ -57,6 +58,7 @@ Every change, regardless of size, follows this sequence:
    uv run ty check src        # or: uv run mypy src
    uv run pytest tests/ -v
    uv run bandit -q -c pyproject.toml -r src
+   uv run pip-audit --ignore-vuln CVE-2026-4539
    ```
 6. **Commit** — conventional commit with full body for non-trivial changes
 7. **PR → develop → main** — follow Branch Strategy below
