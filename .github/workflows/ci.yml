@@ -127,7 +127,13 @@ jobs:
       - name: Audit .pth files
         run: |
           echo "Checking for suspicious .pth files..."
-          SUSPICIOUS=$(find .venv -name '*.pth' -exec grep -l '^import ' {} \; 2>/dev/null || true)
+          # Exclude known-safe standard tooling .pth files:
+          #   _virtualenv.pth  — virtualenv's own internal bootstrap (always present)
+          #   a1_coverage.pth  — pytest-cov subprocess coverage hook (installed by coverage/pytest-cov)
+          SUSPICIOUS=$(find .venv -name '*.pth' \
+            ! -name '_virtualenv.pth' \
+            ! -name 'a1_coverage.pth' \
+            -exec grep -l '^import ' {} \; 2>/dev/null || true)
           if [ -n "$SUSPICIOUS" ]; then
             echo "::error::Suspicious .pth files with import statements found:"
             echo "$SUSPICIOUS"
