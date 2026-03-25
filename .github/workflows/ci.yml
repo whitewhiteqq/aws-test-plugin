@@ -143,7 +143,12 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked
 
       - name: Run ty
-        # uvx manages its own isolated env — no uv sync needed
-        run: uvx ty check src --python-version 3.12
+        run: uv run ty check src

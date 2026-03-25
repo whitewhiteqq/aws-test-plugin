@@ -138,6 +138,7 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4.0",
     "mypy>=1.0",
+    "ty>=0.0.0a1",
     "types-defusedxml",
     "bandit[toml]>=1.7.9",
     "pip-audit>=2.8.0",

@@ -21,7 +21,7 @@ uv run ruff check --fix src tests
 uv run ruff format src tests
 
 # Type checking — ty is the primary checker (fast, replaces mypy)
-uvx ty check src
+uv run ty check src
 
 # Type checking — mypy (secondary; kept for compatibility)
 uv run mypy src
