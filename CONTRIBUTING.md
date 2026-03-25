@@ -21,7 +21,10 @@ uv run pytest tests/ -v
 uv run ruff check src tests
 uv run ruff format --check src tests
 
-# Type checking
+# Type checking — ty is the primary checker (fast, replaces mypy)
+uv run ty check src
+
+# Type checking — mypy (secondary; kept for compatibility)
 uv run mypy src
 
 # Security scans

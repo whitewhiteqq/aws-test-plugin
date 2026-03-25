@@ -252,14 +252,17 @@ uv sync --locked
 uv run pytest tests/ -v
 
 # Lint
-uv run ruff check src/
-uv run ruff format --check src/
+uv run ruff check src tests
+uv run ruff format --check src tests
 
-# Type checking
-uv run mypy src/
+# Type checking — ty is the primary checker (fast, replaces mypy)
+uv run ty check src
+
+# Type checking — mypy (secondary; kept for compatibility)
+uv run mypy src
 
 # Security scans
-uv run bandit -q -c pyproject.toml -r src/
+uv run bandit -q -c pyproject.toml -r src
 uv run pip-audit
 
 # Verify lockfile is up to date (must pass before any commit)
