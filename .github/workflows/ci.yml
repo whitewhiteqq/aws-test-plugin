@@ -14,6 +14,20 @@ permissions:
   contents: read
 
 jobs:
+  lockfile:
+    name: Lockfile Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Verify lockfile is up-to-date
+        run: uv lock --check
+
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -26,16 +40,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+          enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run tests
         run: uv run pytest tests/ -v
@@ -48,16 +60,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+          enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Ruff check
         run: uv run ruff check src tests
@@ -73,16 +83,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+          enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run mypy
         run: uv run mypy src
@@ -95,19 +103,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+          enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run Bandit
         run: uv run bandit -q -c pyproject.toml -r src
 
       - name: Run pip-audit
         run: uv run pip-audit
+
+      - name: Audit .pth files
+        run: |
+          echo "Checking for suspicious .pth files..."
+          SUSPICIOUS=$(find .venv -name '*.pth' -exec grep -l '^import ' {} \; 2>/dev/null || true)
+          if [ -n "$SUSPICIOUS" ]; then
+            echo "::error::Suspicious .pth files with import statements found:"
+            echo "$SUSPICIOUS"
+            for f in $SUSPICIOUS; do
+              echo "--- $f ---"
+              cat "$f"
+            done
+            exit 1
+          fi
+          echo "No suspicious .pth files found."
+
+  typecheck-ty:
+    name: Type Check (ty)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Run ty
+        run: uvx ty check src
