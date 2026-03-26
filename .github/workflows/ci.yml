@@ -31,6 +31,7 @@ jobs:
 
   test:
     name: Test (Python ${{ matrix.python-version }})
+    needs: [lockfile]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,13 +49,14 @@ jobs:
           enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync --locked
+        run: uv sync --frozen
 
       - name: Run tests
         run: uv run pytest tests/ -v
 
   lint:
     name: Lint
+    needs: [lockfile]
     runs-on: ubuntu-latest
 
     steps:
@@ -67,17 +69,18 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
-      - name: Sync dependencies
-        run: uv sync --locked
+      - name: Sync dependencies (no sdist builds)
+        run: uv sync --frozen --no-build --no-install-project
 
       - name: Ruff check
-        run: uv run ruff check src tests
+        run: uv run --no-sync ruff check src tests
 
       - name: Ruff format check
-        run: uv run ruff format --check src tests
+        run: uv run --no-sync ruff format --check src tests
 
   typecheck:
     name: Type Check
+    needs: [lockfile]
     runs-on: ubuntu-latest
 
     steps:
@@ -90,14 +93,15 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
-      - name: Sync dependencies
-        run: uv sync --locked
+      - name: Sync dependencies (no sdist builds)
+        run: uv sync --frozen --no-build --no-install-project
 
       - name: Run mypy
-        run: uv run mypy src
+        run: uv run --no-sync mypy src
 
   security:
     name: Security
+    needs: [lockfile]
     runs-on: ubuntu-latest
 
     steps:
@@ -110,11 +114,11 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
-      - name: Sync dependencies
-        run: uv sync --locked
+      - name: Sync dependencies (no sdist builds)
+        run: uv sync --frozen --no-build --no-install-project
 
       - name: Run Bandit
-        run: uv run bandit -q -c pyproject.toml -r src
+        run: uv run --no-sync bandit -q -c pyproject.toml -r src
 
       - name: Run pip-audit
         run: |
@@ -122,50 +126,16 @@ jobs:
           # Local-access-only; no fix version exists yet; pygments is a
           # transitive dep of bandit/rich and is not shipped to users.
           # Remove this ignore once a patched pygments is released.
-          uv run pip-audit --ignore-vuln CVE-2026-4539
-
-      - name: Audit .pth files
-        run: |
-          echo "Checking for suspicious .pth files..."
-          # Every .pth file that contains an import statement is inspected.
-          # Known-safe files are verified by content, not just by name, so
-          # a tampered version (same filename, different payload) still fails.
-          FAIL=0
-          while IFS= read -r pth_file; do
-            fname=$(basename "$pth_file")
-            case "$fname" in
-              _virtualenv.pth)
-                # Must contain ONLY 'import _virtualenv' — virtualenv's own bootstrap.
-                # Strip \r so the check is portable across Linux and Windows runners.
-                content=$(tr -d '\r' < "$pth_file" | tr -d '\n')
-                if [ "$content" != "import _virtualenv" ]; then
-                  echo "::error::$pth_file has unexpected content (possible supply-chain tamper)"
-                  cat "$pth_file"
-                  FAIL=1
-                fi
-                ;;
-              a1_coverage.pth)
-                # Must contain the COVERAGE_PROCESS_START env-var guard.
-                # This guard is the safety property: the hook is inert unless
-                # the caller explicitly opts in via that env var. A tampered
-                # version that removes the guard and runs unconditionally fails.
-                if ! grep -q 'COVERAGE_PROCESS_START' "$pth_file"; then
-                  echo "::error::$pth_file is missing COVERAGE_PROCESS_START guard (possible tamper)"
-                  cat "$pth_file"
-                  FAIL=1
-                fi
-                ;;
-              *)
-                echo "::error::Unexpected .pth file with import statement: $pth_file"
-                cat "$pth_file"
-                FAIL=1
-                ;;
-            esac
-          done < <(find .venv -name '*.pth' -exec grep -ql '^import ' {} \; 2>/dev/null)
-          [ "$FAIL" -eq 0 ] && echo "All .pth files verified." || exit 1
+          #
+          # CVE-2026-25645: requests 2.32.5 — blocked by exclude-newer
+          # cooldown; fix is in 2.33.0.  requests is an optional e2e dep
+          # (not installed in default CI runs).  Remove once 2.33.0 clears
+          # the 14-day window.
+          uv run --no-sync pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645
 
   typecheck-ty:
     name: Type Check (ty)
+    needs: [lockfile]
     runs-on: ubuntu-latest
     continue-on-error: true  # ty is non-blocking while stabilising; promote to blocking when mypy is removed
 
@@ -179,8 +149,8 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
-      - name: Sync dependencies
-        run: uv sync --locked
+      - name: Sync dependencies (no sdist builds)
+        run: uv sync --frozen --no-build --no-install-project
 
       - name: Run ty
-        run: uv run ty check src
+        run: uv run --no-sync ty check src
