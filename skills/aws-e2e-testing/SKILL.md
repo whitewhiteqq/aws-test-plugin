@@ -1,5 +1,6 @@
 ---
 name: aws-e2e-testing
+license: Apache-2.0
 description: >
   Generate comprehensive end-to-end tests for AWS Python services by reading
   the actual handler code logic. Covers API Gateway Lambda proxies,

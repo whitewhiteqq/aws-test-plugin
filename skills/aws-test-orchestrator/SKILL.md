@@ -1,5 +1,6 @@
 ---
 name: aws-test-orchestrator
+license: Apache-2.0
 description: >
   Master skill for testing AWS Python projects. Discovers project components
   (Lambda, API Gateway, Step Functions, Batch), reads handler code logic,

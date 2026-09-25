@@ -1,5 +1,6 @@
 ---
 name: aws-perf-load-testing
+license: Apache-2.0
 description: >
   Generate performance benchmarks and load tests for AWS Python services.
   Performance tests measure Lambda latency, memory usage, cold start time,

@@ -1,5 +1,6 @@
 ---
 name: aws-unit-testing
+license: Apache-2.0
 description: >
   Generate thorough unit tests for AWS Python business logic with full branch
   coverage, boundary value analysis, and edge case testing. Isolates pure
