@@ -1,5 +1,6 @@
 ---
 name: aws-integration-testing
+license: Apache-2.0
 description: >
   Generate comprehensive integration tests for AWS Python Lambda functions,
   Batch jobs, and services that interact with S3, DynamoDB, RDS/PostgreSQL,

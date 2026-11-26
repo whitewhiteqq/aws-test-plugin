@@ -1,5 +1,6 @@
 ---
 name: aws-e2e-testing
+license: Apache-2.0
 description: >
   Generate comprehensive end-to-end tests for AWS Python services by reading
   the actual handler code logic. Covers API Gateway Lambda proxies,
@@ -12,6 +13,15 @@ description: >
 
 Generate comprehensive E2E tests by reading the handler code and producing tests
 that exercise every endpoint, workflow branch, and failure mode against a deployed environment.
+
+Use the project's existing E2E harness and requested scope. Before execution,
+record the selected endpoint or ARNs, AWS identity, account, region, and permitted
+operations. Keep deployed tests separate from offline credentials and collection.
+Use the verified session pattern in
+[deployed AWS session](references/aws-session.md)
+for AWS clients. Required configuration or authentication failures must fail;
+optional skips are reported as skipped coverage. Clean up only resources owned
+by this test run. Never run production tests without explicit confirmation.
 
 ## How to Generate E2E Tests
 

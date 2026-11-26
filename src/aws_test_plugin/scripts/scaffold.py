@@ -11,6 +11,8 @@ then creates the test directory structure with conftest.py and pytest.ini.
 
 import argparse
 import os
+import re
+from collections.abc import Iterator
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -19,17 +21,48 @@ from pathlib import Path
 
 HANDLER_FILENAMES = {"main.py", "handler.py", "app.py", "lambda_function.py"}
 BATCH_INDICATORS = {"Dockerfile", "docker-compose.yml"}
-SFN_PATTERNS = {"*.asl.json"}
-API_SPEC_NAMES = {"swagger.yml", "swagger.yaml", "openapi.yml", "openapi.yaml"}
+API_SPEC_NAMES = {"swagger.yml", "swagger.yaml", "swagger.json", "openapi.yml", "openapi.yaml", "openapi.json"}
+EXCLUDED_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    "__pycache__",
+    ".aws-sam",
+    ".terraform",
+    ".tox",
+    ".nox",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "site-packages",
+    "tests",
+    "test",
+}
+
+
+def _source_files(root: Path) -> Iterator[tuple[Path, list[str]]]:
+    """Walk source trees without generated directories or external paths."""
+    boundary = root.resolve()
+    for dirpath, dirs, filenames in os.walk(root):
+        directory = Path(dirpath)
+        dirs[:] = sorted(
+            d
+            for d in dirs
+            if d not in EXCLUDED_DIRS
+            and not (directory / d).is_symlink()
+            and (directory / d).resolve().is_relative_to(boundary)
+        )
+        yield directory, filenames
 
 
 def discover_lambdas(root: Path) -> list[Path]:
     """Find Lambda handler directories."""
     results = []
-    for dirpath, _dirs, files in os.walk(root):
-        dp = Path(dirpath)
-        if dp.name in ("node_modules", ".git", "__pycache__", ".aws-sam"):
-            continue
+    for dp, files in _source_files(root):
         for hf in HANDLER_FILENAMES:
             if hf in files and "test" not in dp.name.lower():
                 results.append(dp)
@@ -40,10 +73,9 @@ def discover_lambdas(root: Path) -> list[Path]:
 def discover_batch_jobs(root: Path) -> list[Path]:
     """Find Batch job directories (contain Dockerfile)."""
     results = []
-    for dirpath, _dirs, files in os.walk(root):
-        dp = Path(dirpath)
+    for dp, files in _source_files(root):
         if any(ind in files for ind in BATCH_INDICATORS):
-            if "batch" in dp.name.lower() or "batch" in str(dp).lower():
+            if "batch" in dp.name.lower() or any("batch" in part.lower() for part in dp.relative_to(root).parts):
                 results.append(dp)
     return results
 
@@ -51,20 +83,20 @@ def discover_batch_jobs(root: Path) -> list[Path]:
 def discover_step_functions(root: Path) -> list[Path]:
     """Find Step Function ASL definitions."""
     results = []
-    for dirpath, _dirs, files in os.walk(root):
-        for f in files:
+    for directory, files in _source_files(root):
+        for f in sorted(files):
             if f.endswith(".asl.json"):
-                results.append(Path(dirpath) / f)
+                results.append(directory / f)
     return results
 
 
 def discover_api_specs(root: Path) -> list[Path]:
     """Find OpenAPI/Swagger spec files."""
     results = []
-    for dirpath, _dirs, files in os.walk(root):
-        for f in files:
+    for directory, files in _source_files(root):
+        for f in sorted(files):
             if f in API_SPEC_NAMES:
-                results.append(Path(dirpath) / f)
+                results.append(directory / f)
     return results
 
 
@@ -75,48 +107,23 @@ def discover_api_specs(root: Path) -> list[Path]:
 CONFTEST_TEMPLATE = '''\
 """Shared fixtures for all test types.
 
-Secrets and config are loaded from .env (never hardcoded in test files).
-Copy .env.example to .env and fill in values for E2E/load tests.
-Unit/integration/contract tests work with the defaults.
+Request aws_env_vars explicitly in offline fixtures before importing handlers.
+Use moto or service stubs as well. Fake credentials do not block network calls.
+The packaged runner loads .env only for deployed E2E/load categories.
 """
-import os
 import json
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def _load_dotenv():
-    """Load .env file if present (no python-dotenv dependency)."""
-    env_file = REPO_ROOT / ".env"
-    if not env_file.exists():
-        return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip("\'\'\"")
-        if key not in os.environ:
-            os.environ[key] = value
-
-
-_load_dotenv()
-
-
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def aws_env_vars(monkeypatch):
-    """Set safe fake AWS credentials for moto (prevents real AWS calls)."""
+    """Provide fake credentials for offline tests that request this fixture."""
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
 
 @pytest.fixture
@@ -175,7 +182,8 @@ ENV_EXAMPLE_TEMPLATE = """\
 #
 # Unit, integration, contract, and performance tests work without any values.
 # Only fill in E2E/load test values when you need to test against a deployed API.
-# Fake AWS credentials for moto are set automatically in conftest.py.
+# The runner sets fake credentials before offline collection. Direct pytest
+# fixtures must request aws_env_vars before constructing mocked clients.
 
 AWS_DEFAULT_REGION=us-east-1
 
@@ -220,6 +228,11 @@ def create_test_structure(root: Path, lambdas: list, batches: list):
         tests_dir / "fixtures",
         tests_dir / "reports",
     ]
+    targets = [*dirs, *(d / ".gitkeep" for d in dirs)]
+    targets.extend([tests_dir / "conftest.py", root / "pytest.ini", root / ".env.example", root / ".gitignore"])
+    for target in targets:
+        if not target.resolve().is_relative_to(root.resolve()):
+            raise ValueError(f"Scaffold path escapes project directory: {target}")
 
     created = []
     for d in dirs:
@@ -232,30 +245,38 @@ def create_test_structure(root: Path, lambdas: list, batches: list):
     # conftest.py
     conftest = tests_dir / "conftest.py"
     if not conftest.exists():
-        conftest.write_text(CONFTEST_TEMPLATE)
+        conftest.write_text(CONFTEST_TEMPLATE, encoding="utf-8")
         created.append(str(conftest))
 
     # pytest.ini
     pytest_ini = root / "pytest.ini"
-    if not pytest_ini.exists():
-        pytest_ini.write_text(PYTEST_INI_TEMPLATE)
+    config_files = ("pytest.ini", ".pytest.ini", "pytest.toml", ".pytest.toml")
+    has_pytest_config = any((root / name).exists() for name in config_files)
+    for name in ("pyproject.toml", "setup.cfg", "tox.ini"):
+        config = root / name
+        if config.exists() and re.search(
+            r"^\s*\[(?:tool\.pytest(?:\.ini_options)?|tool:pytest|pytest)\]",
+            config.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        ):
+            has_pytest_config = True
+    if not has_pytest_config:
+        pytest_ini.write_text(PYTEST_INI_TEMPLATE, encoding="utf-8")
         created.append(str(pytest_ini))
 
     # .env.example (committed — template for developers)
     env_example = root / ".env.example"
     if not env_example.exists():
-        env_example.write_text(ENV_EXAMPLE_TEMPLATE)
+        env_example.write_text(ENV_EXAMPLE_TEMPLATE, encoding="utf-8")
         created.append(str(env_example))
 
     # Ensure .env is gitignored
     gitignore = root / ".gitignore"
-    env_ignored = False
-    if gitignore.exists():
-        content = gitignore.read_text(encoding="utf-8")
-        env_ignored = ".env" in content
-    if not env_ignored:
+    content = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
+    ignore_rules = ".env\n.env.*\n!.env.example"
+    if not content.rstrip().endswith(ignore_rules):
         with open(gitignore, "a", encoding="utf-8") as f:
-            f.write("\n# Environment / secrets\n.env\n.env.local\n.env.*.local\n!.env.example\n")
+            f.write(f"\n# Environment / secrets\n{ignore_rules}\n")
         created.append(str(gitignore))
 
     return created
@@ -308,7 +329,7 @@ def main():
 
     print("\nDone! Next steps:")
     print("  1. Install test dependencies: pip install 'aws-test-plugin[test]'")
-    print("  2. Ask Claude to generate tests: 'Write integration tests for my Lambdas'")
+    print("  2. Ask your agent: 'Write integration tests for my Lambdas'")
     print("  3. Run tests: pytest tests/integration/ -m integration")
 
 

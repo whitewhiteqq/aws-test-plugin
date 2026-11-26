@@ -2,12 +2,11 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   push:
-    branches:
-      - '**'
+    branches: ['**']
+  schedule:
+    - cron: '17 4 * * 3'
 
 permissions:
   contents: read
@@ -16,18 +15,15 @@ jobs:
   lockfile:
     name: Lockfile Check
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          enable-cache: true
-
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
       - name: Verify lockfile is up-to-date
-        run: uv lock --check
+        run: uv lock --check --no-build
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -36,121 +32,91 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-
+        python-version: ['3.10', '3.11', '3.12', '3.13']
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
           python-version: ${{ matrix.python-version }}
-          enable-cache: true
-
-      - name: Sync dependencies
-        run: uv sync --frozen
-
+      - name: Sync dependencies without executing source builds
+        run: uv sync --locked --no-build --no-install-project
       - name: Run tests
-        run: uv run pytest tests/ -v
+        run: uv run --no-sync pytest tests/ -v
 
   lint:
     name: Lint
     needs: [lockfile]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies (no sdist builds)
-        run: uv sync --frozen --no-build --no-install-project
-
-      - name: Ruff check
-        run: uv run --no-sync ruff check src tests
-
-      - name: Ruff format check
-        run: uv run --no-sync ruff format --check src tests
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
+          python-version: '3.12'
+      - run: uv sync --locked --no-build --no-install-project
+      - run: uv run --no-sync ruff check src tests
+      - run: uv run --no-sync ruff format --check src tests
 
   typecheck:
     name: Type Check
     needs: [lockfile]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies (no sdist builds)
-        run: uv sync --frozen --no-build --no-install-project
-
-      - name: Run mypy
-        run: uv run --no-sync mypy src
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
+          python-version: '3.12'
+      - run: uv sync --locked --no-build --no-install-project
+      - run: uv run --no-sync mypy src
+      - run: uv run --no-sync ty check src
 
   security:
     name: Security
     needs: [lockfile]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies (no sdist builds)
-        run: uv sync --frozen --no-build --no-install-project
-
-      - name: Run Bandit
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
+          python-version: '3.12'
+      - run: uv sync --locked --no-build --no-install-project
+      - name: Scan source
         run: uv run --no-sync bandit -q -c pyproject.toml -r src
-
-      - name: Run pip-audit
+      - name: Audit all locked groups and extras
         run: |
-          # CVE-2026-4539: ReDoS in pygments AdlLexer (archetype.py).
-          # Local-access-only; no fix version exists yet; pygments is a
-          # transitive dep of bandit/rich and is not shipped to users.
-          # Remove this ignore once a patched pygments is released.
-          #
-          # CVE-2026-25645: requests 2.32.5 — blocked by exclude-newer
-          # cooldown; fix is in 2.33.0.  requests is an optional e2e dep
-          # (not installed in default CI runs).  Remove once 2.33.0 clears
-          # the 14-day window.
-          uv run --no-sync pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645
+          uv audit --locked --no-build
 
-  typecheck-ty:
-    name: Type Check (ty)
+  package:
+    name: Package
     needs: [lockfile]
     runs-on: ubuntu-latest
-    continue-on-error: true  # ty is non-blocking while stabilising; promote to blocking when mypy is removed
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Sync dependencies (no sdist builds)
-        run: uv sync --frozen --no-build --no-install-project
-
-      - name: Run ty
-        run: uv run --no-sync ty check src
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.10'
+          python-version: '3.12'
+      - run: uv sync --locked --group build --no-build --no-install-project
+      - name: Build with locked build dependencies
+        run: uv build --no-build-isolation
+      - name: Verify installed skill resources
+        run: |
+          uv venv .smoke
+          uv pip install --python .smoke/bin/python --no-deps --no-build dist/*.whl
+          .smoke/bin/python -m aws_test_plugin.cli init smoke-project --agent codebuddy --agent qoder --agent codex
+          test -f smoke-project/.codebuddy/skills/aws-test-orchestrator/SKILL.md
+          test -f smoke-project/.qoder/skills/aws-test-orchestrator/SKILL.md
+          test -f smoke-project/.agents/skills/aws-test-orchestrator/SKILL.md

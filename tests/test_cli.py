@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from aws_test_plugin.cli import _get_data_dir, _get_pkg_dir, cmd_init
 
 
@@ -189,6 +191,41 @@ def test_init_creates_codex_agents_md(tmp_path):
     assert agents_md.exists(), "AGENTS.md not created for Codex"
     content = agents_md.read_text(encoding="utf-8")
     assert "AWS Test Plugin" in content
+    assert (tmp_path / ".agents/skills/aws-test-orchestrator/SKILL.md").exists()
+
+
+@pytest.mark.parametrize(
+    ("agent", "directory"),
+    [("codebuddy", ".codebuddy"), ("qoder", ".qoder"), ("codex", ".agents")],
+)
+def test_init_installs_portable_skills_and_references(tmp_path, agent, directory):
+    target = tmp_path / "new-project"
+    cmd_init(str(target), [agent])
+    for source in (_get_data_dir() / "skills").rglob("*.md"):
+        installed = target / directory / "skills" / source.relative_to(_get_data_dir() / "skills")
+        assert installed.read_bytes() == source.read_bytes()
+    assert not (target / ".claude").exists()
+    assert not (target / ".github").exists()
+
+
+def test_init_default_installs_every_supported_agent(tmp_path):
+    cmd_init(str(tmp_path))
+    for directory in (".claude", ".github", ".agents", ".codebuddy", ".qoder"):
+        assert (tmp_path / directory / "skills/aws-test-orchestrator/SKILL.md").exists()
+
+
+def test_init_rejects_destination_link_outside_project(tmp_path):
+    root = tmp_path / "project"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    try:
+        (root / ".qoder").symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"Directory symlinks unavailable: {exc}")
+    with pytest.raises(ValueError, match="escapes project directory"):
+        cmd_init(str(root), ["qoder"])
+    assert list(outside.iterdir()) == []
 
 
 def test_init_skip_existing(tmp_path):
@@ -201,6 +238,7 @@ def test_init_skip_existing(tmp_path):
     # Second install
     cmd_init(str(tmp_path), ["claude"])
     # Should NOT be overwritten
+    assert marker.read_text(encoding="utf-8") == "custom content"
 
 
 # ── Claude Code plugin manifest tests ──

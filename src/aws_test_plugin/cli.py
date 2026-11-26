@@ -5,6 +5,14 @@ import sys
 from importlib.resources import files
 from pathlib import Path
 
+AGENT_PATHS = {
+    "claude": (".claude/skills", ".claude/agents"),
+    "copilot": (".github/skills", ".github/agents"),
+    "codex": (".agents/skills", None),
+    "codebuddy": (".codebuddy/skills", None),
+    "qoder": (".qoder/skills", None),
+}
+
 
 def _get_pkg_dir() -> Path:
     """Return the installed package directory (contains AGENTS.md, scripts/)."""
@@ -28,19 +36,22 @@ def _get_data_dir() -> Path:
     return pkg
 
 
-def _copy_tree(src: Path, dst: Path, label: str) -> int:
+def _copy_tree(src: Path, dst: Path, root: Path) -> int:
     """Copy a directory tree, reporting what's copied. Returns file count."""
     count = 0
     for item in sorted(src.rglob("*")):
         if item.is_file():
             rel = item.relative_to(src)
             target = dst / rel
+            if not target.resolve().is_relative_to(root):
+                raise ValueError(f"Install path escapes project directory: {target}")
             target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists():
-                print(f"  skip  {label}/{rel}  (already exists)")
+            label = target.relative_to(root)
+            if target.exists() or target.is_symlink():
+                print(f"  skip  {label}  (already exists)")
             else:
                 shutil.copy2(item, target)
-                print(f"  +     {label}/{rel}")
+                print(f"  +     {label}")
                 count += 1
     return count
 
@@ -50,36 +61,29 @@ def cmd_init(target: str, agents: list[str] | None = None) -> None:
     root = Path(target).resolve()
     data = _get_data_dir()
 
-    agents_to_install = agents or ["claude", "copilot", "codex"]
+    agents_to_install = agents or list(AGENT_PATHS)
+    if "all" in agents_to_install:
+        agents_to_install = list(AGENT_PATHS)
+    unknown = set(agents_to_install) - AGENT_PATHS.keys()
+    if unknown:
+        raise ValueError(f"Unknown agents: {', '.join(sorted(unknown))}")
+    root.mkdir(parents=True, exist_ok=True)
 
     total = 0
     skills_src = data / "skills"
     agents_src = data / "agents"
 
-    # Always install skills
-    if skills_src.is_dir():
-        for agent in agents_to_install:
-            if agent in ("claude",):
-                dst = root / ".claude" / "skills"
-                total += _copy_tree(skills_src, dst, ".claude/skills")
-            if agent in ("copilot",):
-                dst = root / ".github" / "skills"
-                total += _copy_tree(skills_src, dst, ".github/skills")
-
-    # Install agent definitions
-    if agents_src.is_dir():
-        for agent in agents_to_install:
-            if agent in ("claude",):
-                dst = root / ".claude" / "agents"
-                total += _copy_tree(agents_src, dst, ".claude/agents")
-            if agent in ("copilot",):
-                dst = root / ".github" / "agents"
-                total += _copy_tree(agents_src, dst, ".github/agents")
+    for agent in dict.fromkeys(agents_to_install):
+        skills_path, definitions_path = AGENT_PATHS[agent]
+        if skills_src.is_dir():
+            total += _copy_tree(skills_src, root / skills_path, root)
+        if definitions_path and agents_src.is_dir():
+            total += _copy_tree(agents_src, root / definitions_path, root)
 
     # For Codex: generate AGENTS.md if requested
     if "codex" in agents_to_install:
         agents_md = root / "AGENTS.md"
-        if not agents_md.exists():
+        if not agents_md.exists() and not agents_md.is_symlink():
             # AGENTS.md lives in the package dir, not with skills/agents
             agents_md_src = _get_pkg_dir() / "AGENTS.md"
             if agents_md_src.exists():
@@ -160,7 +164,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         prog="aws-test-plugin",
-        description="Install AWS test skills for AI coding agents (Claude Code, GitHub Copilot, Codex)",
+        description="Install AWS test skills for Claude Code, Copilot, Codex, CodeBuddy, and Qoder",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -171,7 +175,7 @@ def main() -> None:
         "--agent",
         "-a",
         action="append",
-        choices=["claude", "copilot", "codex", "all"],
+        choices=[*AGENT_PATHS, "all"],
         help="Which agent(s) to install for (default: all). Repeatable.",
     )
 
@@ -184,15 +188,15 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "init":
-        agents = args.agent or ["all"]
-        if "all" in agents:
-            agents = ["claude", "copilot", "codex"]
-        cmd_init(args.target, agents)
-    elif args.command == "list":
-        cmd_list()
-    elif args.command == "scaffold":
-        cmd_scaffold(args.target)
+    try:
+        if args.command == "init":
+            cmd_init(args.target, args.agent)
+        elif args.command == "list":
+            cmd_list()
+        elif args.command == "scaffold":
+            cmd_scaffold(args.target)
+    except ValueError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":

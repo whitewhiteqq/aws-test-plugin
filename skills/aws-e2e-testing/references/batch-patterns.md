@@ -1,5 +1,10 @@
 # Batch Job E2E Test Patterns
 
+Use the project's verified deployed session and target checks before adapting
+these examples. See [deployed AWS session](aws-session.md).
+Keep offline credential fixtures out of this suite. A resource prefix alone does
+not prove cleanup ownership. Do not convert authentication failures to skips.
+
 Patterns for testing AWS Batch jobs end-to-end.
 Each test module targets **one component** with its own prefixed env vars.
 
@@ -10,7 +15,6 @@ Each test module targets **one component** with its own prefixed env vars.
 import os
 import time
 import pytest
-import boto3
 
 # Component prefix — derived from service name during discovery.
 # Example: for job "data-ingestion" → COMPONENT = "DATA_INGESTION"
@@ -18,7 +22,7 @@ COMPONENT = "{COMPONENT}"
 
 BATCH_JOB_QUEUE = os.getenv(f"{COMPONENT}_BATCH_JOB_QUEUE")
 BATCH_JOB_DEFINITION = os.getenv(f"{COMPONENT}_BATCH_JOB_DEFINITION")
-REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+# Provide the aws_session fixture in tests/e2e/conftest.py using the linked pattern.
 
 pytestmark = [
     pytest.mark.e2e,
@@ -30,9 +34,9 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def batch_client():
-    """Batch client using default AWS profile."""
-    return boto3.client("batch", region_name=REGION)
+def batch_client(aws_session):
+    """Batch client using the verified deployed AWS session."""
+    return aws_session.client("batch")
 
 
 class TestBatchJobExecution:

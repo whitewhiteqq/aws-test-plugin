@@ -1,5 +1,6 @@
 ---
 name: aws-unit-testing
+license: Apache-2.0
 description: >
   Generate thorough unit tests for AWS Python business logic with full branch
   coverage, boundary value analysis, and edge case testing. Isolates pure
@@ -204,13 +205,13 @@ class TestEdgeCases:
         assert isinstance(result, dict)
         assert "statusCode" in result
 
-    # --- Special characters & injection ---
+    # --- Special-character inputs ---
     @pytest.mark.parametrize("value", [
         "café",                          # accented
         "🎉🚀",                          # emoji
         "日本語",                          # CJK
         "<script>alert(1)</script>",     # XSS
-        "'; DROP TABLE --",              # SQL injection
+        "O'Brien",                       # apostrophe
         "../../../etc/passwd",           # path traversal
     ])
     def test_special_characters_dont_crash(self, value):

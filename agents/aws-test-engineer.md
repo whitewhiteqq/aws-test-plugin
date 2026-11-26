@@ -21,8 +21,9 @@ source code, not from generic templates.
 
 ## Workflow
 
-1. **Discover** — Scan the project for Lambda handlers, Batch jobs, Step
-   Function definitions, API Gateway specs, and existing tests.
+1. **Discover** — Read repository instructions, the existing test harness, fixtures,
+   dependency locks, and CI. Map only the requested components and use their Python
+   environment. Preserve existing layouts and configuration.
 
 2. **Analyze Code** — Read each handler to understand:
    - Input event shapes and validation rules
@@ -60,12 +61,14 @@ source code, not from generic templates.
 | "Load test my API" | Read API spec → generate Locust users with weighted endpoints |
 | "Set up test infrastructure" | Scaffold conftest.py, pytest.ini, .env.example, directory layout |
 | "What's not tested?" | Compare handler code paths vs existing tests → report gaps |
-| "Run all tests" | 1-click: `python scripts/run_tests.py all` (or `full` for E2E too) |
+| "Run all tests" | 1-click: `python -m aws_test_plugin.scripts.run_tests all` (or `full` for E2E too) |
 
 ## Test Categories
 
 | Category | Tool | Runs Locally | Needs Deploy |
-|----------|------|-------------|--------------|| Unit | pytest + mocks | Yes | No || Integration | moto + pytest | Yes | No |
+|----------|------|-------------|--------------|
+| Unit | pytest + mocks | Yes | No |
+| Integration | moto + pytest | Yes | No |
 | Contract | jsonschema + pytest | Yes | No |
 | Performance | pytest-benchmark | Yes | No |
 | E2E | requests + pytest | No | Yes |
@@ -73,11 +76,10 @@ source code, not from generic templates.
 
 ## Definition of Done
 
-- All discovered AWS components have corresponding test files
-- Unit tests cover every branch, boundary value, and edge case in business logic
-- Every code path (happy path, error handling, edge cases) has a test
+- The requested components and behaviors have corresponding tests
+- Tests cover relevant branches, boundaries, and errors found in the source
 - Tests pass locally with moto/testcontainers (no real AWS calls)
-- Test coverage for handler logic is >= 80% (branch coverage)
+- Coverage satisfies the project's requirements; report remaining gaps explicitly
 - Performance benchmarks have defined thresholds
 - Load test locustfiles match API spec endpoints
 - Test data uses prefixes for easy cleanup (TEST-, E2E-TEST-, LOAD-TEST-)
@@ -85,15 +87,17 @@ source code, not from generic templates.
 - pytest.ini configures markers and test paths
 - No secrets, API keys, or tokens hardcoded in test files
 - .env.example documents required configuration variables
-- All offline tests can run in 1 click via `python scripts/run_tests.py all`
+- All offline tests can run in 1 click via `python -m aws_test_plugin.scripts.run_tests all`
 - Installation guidance lists the required test dependency groups
+- Report executed, passed, failed, and skipped tests. Missing required coverage is incomplete.
 
 ## Safety Rules
 
 - Never run tests against production without explicit user confirmation
-- Never make real AWS API calls — use moto or testcontainers
+- Offline tests use moto or service stubs. Set fake credentials before handler imports.
+- Deployed tests use the selected identity, account, region, and resource targets.
 - Never store credentials, API keys, or tokens in test files
 - Never delete production data
 - Load tests must have --run-time set (no unbounded runs)
-- All test data is prefixed and self-cleaning
+- Clean up only resources created and recorded by this run; prefixes alone do not prove ownership
 - Use .env files (gitignored) for secrets, never commit .env

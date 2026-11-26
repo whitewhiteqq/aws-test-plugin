@@ -5,38 +5,40 @@ Follow all rules here in addition to the instructions in `src/aws_test_plugin/AG
 
 ## Commands
 
+Use uv 0.13.10 or newer. Sync installs wheel dependencies without installing the
+project; pytest reads `src/` directly. Build distributions with
+`uv build --no-build-isolation` after syncing the locked `build` group.
+
 ```bash
 # Sync dependencies (after cloning or pulling)
-uv sync --locked
+uv sync --locked --group build --no-build --no-install-project
 
 # Run all tests
-uv run pytest tests/ -v
+uv run --no-sync pytest tests/ -v
 
 # Lint — check mode (CI)
-uv run ruff check src tests
-uv run ruff format --check src tests
+uv run --no-sync ruff check src tests
+uv run --no-sync ruff format --check src tests
 
 # Lint — fix mode (local dev: always fix before format)
-uv run ruff check --fix src tests
-uv run ruff format src tests
+uv run --no-sync ruff check --fix src tests
+uv run --no-sync ruff format src tests
 
 # Type checking — ty is the primary checker (fast, replaces mypy)
-uv run ty check src
+uv run --no-sync ty check src
 
 # Type checking — mypy (secondary; kept for compatibility)
-uv run mypy src
+uv run --no-sync mypy src
 
 # Security scans
-uv run bandit -q -c pyproject.toml -r src
-# CVE-2026-4539: pygments ReDoS (local-only, no fix yet) — remove ignore once patched
-# CVE-2026-25645: requests 2.32.5 — fix in 2.33.0, blocked by exclude-newer cooldown
-uv run pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645
+uv run --no-sync bandit -q -c pyproject.toml -r src
+uv audit --locked --no-build
 
 # Verify lockfile is up to date (must pass before any commit)
-uv lock --check
+uv lock --check --no-build
 
 # Regenerate lockfile when pyproject.toml changes
-uv lock
+uv lock --no-build
 ```
 
 ## Change Workflow
@@ -53,13 +55,13 @@ Every change, regardless of size, follows this sequence:
 4. **Version bump** — see Version Policy below
 5. **Local checks** — must all pass before committing:
    ```bash
-   uv lock --check
-   uv run ruff check src tests
-   uv run ruff format --check src tests
-   uv run ty check src        # or: uv run mypy src
-   uv run pytest tests/ -v
-   uv run bandit -q -c pyproject.toml -r src
-   uv run pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645
+   uv lock --check --no-build
+   uv run --no-sync ruff check src tests
+   uv run --no-sync ruff format --check src tests
+   uv run --no-sync ty check src        # or: uv run --no-sync mypy src
+   uv run --no-sync pytest tests/ -v
+   uv run --no-sync bandit -q -c pyproject.toml -r src
+   uv audit --locked --no-build
    ```
 6. **Commit** — conventional commit with full body for non-trivial changes
 7. **PR → develop → main** — follow Branch Strategy below
@@ -86,11 +88,11 @@ Version follows [Semantic Versioning](https://semver.org/):
 
 ## Pre-Commit Enforcement
 
-**Always run `uv lock --check` before committing.**
+**Always run `uv lock --check --no-build` before committing.**
 If it reports that `uv.lock` needs updating, run `uv lock` first, stage
 `uv.lock`, and include it in the same commit as the `pyproject.toml` change.
 
-Never commit a stale lockfile. The CI `lockfile` job runs `uv lock --check`
+Never commit a stale lockfile. The CI `lockfile` job runs `uv lock --check --no-build`
 on every push and pull request; a stale lockfile will block the entire
 pipeline.
 

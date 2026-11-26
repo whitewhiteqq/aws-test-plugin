@@ -1,5 +1,10 @@
 # Step Function E2E Test Patterns
 
+Use the project's verified deployed session and target checks before adapting
+these examples. See [deployed AWS session](aws-session.md).
+Keep offline credential fixtures out of this suite. A resource prefix alone does
+not prove cleanup ownership. Do not convert authentication failures to skips.
+
 Patterns for testing AWS Step Functions workflows end-to-end.
 Each test module targets **one component** with its own prefixed env vars.
 
@@ -10,14 +15,13 @@ Each test module targets **one component** with its own prefixed env vars.
 import os
 import json
 import pytest
-import boto3
 
 # Component prefix — derived from service name during discovery.
 # Example: for workflow "order-processor" → COMPONENT = "ORDER_PROCESSOR"
 COMPONENT = "{COMPONENT}"
 
 STEP_FUNCTION_ARN = os.getenv(f"{COMPONENT}_SFN_ARN")
-REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+# Provide the aws_session fixture in tests/e2e/conftest.py using the linked pattern.
 
 pytestmark = [
     pytest.mark.e2e,
@@ -26,9 +30,9 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def sfn_client():
-    """Step Functions client using default AWS profile."""
-    return boto3.client("stepfunctions", region_name=REGION)
+def sfn_client(aws_session):
+    """Step Functions client using the verified deployed AWS session."""
+    return aws_session.client("stepfunctions")
 
 
 class TestSyncExecution:

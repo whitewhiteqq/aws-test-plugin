@@ -17,12 +17,15 @@
 
 ## Validation
 
-- [ ] `uv run pytest tests/ -v`
-- [ ] `uv run ruff check src tests`
-- [ ] `uv run ruff format --check src tests`
-- [ ] `uv run mypy src`
-- [ ] `uv run bandit -q -c pyproject.toml -r src`
-- [ ] `uv run pip-audit`
+- [ ] `uv lock --check --no-build`
+- [ ] `uv sync --locked --group build --no-build --no-install-project`
+- [ ] `uv run --no-sync pytest tests/ -v`
+- [ ] `uv run --no-sync ruff check src tests`
+- [ ] `uv run --no-sync ruff format --check src tests`
+- [ ] `uv run --no-sync mypy src`
+- [ ] `uv run --no-sync ty check src`
+- [ ] `uv run --no-sync bandit -q -c pyproject.toml -r src`
+- [ ] `uv audit --locked --no-build`
 
 ## Risk Review
 
