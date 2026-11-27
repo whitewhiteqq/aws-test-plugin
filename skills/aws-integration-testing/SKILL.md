@@ -2,22 +2,30 @@
 name: aws-integration-testing
 license: Apache-2.0
 description: >
-  Generate comprehensive integration tests for AWS Python Lambda functions,
-  Batch jobs, and services that interact with S3, DynamoDB, RDS/PostgreSQL,
-  SQS, SNS, EventBridge, Kinesis, and other AWS services. Uses moto for
-  in-process AWS mocking and testcontainers for real database testing. Reads
-  the handler source code to discover every AWS interaction and generates
-  tests covering all code paths. Use when asked to write integration tests,
-  test with mocked AWS, test Lambda + S3, test Lambda + DynamoDB, test
-  Lambda + SQS, test Lambda + SNS, test Lambda + EventBridge, test Lambda
-  + Kinesis, test with moto, or test with testcontainers for any AWS
-  Python project.
+  Generate integration tests for AWS Python handlers and service workflows.
+  Use moto for in-process AWS mocks, testcontainers for databases, or optional
+  AWS Emulator for local AWS API tests. Read handler code to identify AWS
+  interactions and cover success and error paths. Use when asked for
+  integration tests, mocked AWS, moto, testcontainers, or AWS Emulator tests.
 ---
 
 # AWS Integration Testing Skill
 
-Generate integration tests by reading handler code, identifying every AWS service interaction,
-and producing tests with correct moto mocks for each one.
+Generate integration tests by reading handler code, identifying AWS service
+interactions, and testing them with the selected local backend.
+
+## Choose the local backend
+
+Reuse the project's existing tests and fixtures. Keep moto as the default for
+in-process mocks. Use testcontainers when the test needs a real local database.
+Choose AWS Emulator when requested or when the project needs local AWS API
+workflows across processes. Check the selected release's fidelity for the actual
+operations before choosing it.
+
+For AWS Emulator, follow [references/aws-emulator.md](references/aws-emulator.md).
+That reference covers setup, signed requests, HTTPS, and a separately selected
+test suite. The examples below cover moto and testcontainers. Local emulation
+does not establish deployed AWS behavior or policy enforcement.
 
 ## How to Generate Integration Tests
 
@@ -177,7 +185,7 @@ def test_handler_unexpected_error_returns_500(mock_context):
 ## Key Principles
 
 1. **One test per code path** — if the handler has 5 branches, write 5+ tests
-2. **Real moto mocks, not unittest.mock** — use `mock_aws()` for AWS services so real API semantics are tested
+2. **Stateful moto mocks** — use `mock_aws()` for AWS services; mocks do not establish deployed AWS semantics
 3. **Set up real state** — if the handler reads from S3, put an actual object in moto S3
 4. **Test error paths explicitly** — NoSuchKey, ConditionalCheckFailed, throttling
 5. **Import the handler inside the test** — avoid module-level import caching issues with moto

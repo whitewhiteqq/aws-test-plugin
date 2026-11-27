@@ -12,6 +12,9 @@ API Gateway, Step Functions, and Batch.
 5. Report what executed, passed, failed, or skipped. Missing required tests are incomplete.
 
 The six installed skills contain category-specific patterns and reference files.
+For AWS Emulator, use the integration skill's `references/aws-emulator.md`.
+Run a separately selected emulator suite with its generated credentials and CA;
+the packaged offline runner overwrites credentials with fake keys.
 Codex discovers these under `.agents/skills/`. Other supported hosts use their
 native project skill directories. This file supplements existing project rules.
 
@@ -20,7 +23,7 @@ native project skill directories. This file supplements existing project rules.
 | Category | Tool | Deployed access |
 |----------|------|-----------------|
 | Unit | pytest and mocks | No |
-| Integration | moto or testcontainers | No AWS access |
+| Integration | moto, testcontainers, or AWS Emulator | No deployed AWS access |
 | Contract | jsonschema and pytest | No |
 | Performance | pytest-benchmark | No for mocked local benchmarks |
 | E2E | requests or boto3 | Yes |
@@ -51,6 +54,8 @@ project's component-specific configuration. Missing suites are not passes.
 - Use fake AWS credentials with moto or service stubs for offline tests.
   Configure them before importing handlers. Fake keys alone do not block requests.
 - Keep deployed credentials and `.env` loading out of shared offline fixtures.
+- Keep AWS Emulator fixtures separate from mocked tests. Verify the local endpoint
+  and emulator identity before tests; preserve HTTPS and request authentication.
 - Select the AWS profile or CI role, expected account, region, and resource targets
   before deployed tests. Use the project's existing verification procedure.
 - Never run E2E or load tests against production without explicit confirmation.

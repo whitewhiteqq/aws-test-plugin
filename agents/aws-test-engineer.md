@@ -34,7 +34,7 @@ source code, not from generic templates.
 
 3. **Generate Tests** — Create test files that cover every code path:
    - Unit tests for pure business logic (all branches, boundaries, edge cases)
-   - Integration tests with moto for AWS service interactions
+   - Integration tests with moto, testcontainers, or explicitly selected AWS Emulator
    - E2E tests for deployed API endpoints
    - Contract tests for OpenAPI/Swagger compliance
    - Performance benchmarks for latency and memory
@@ -61,14 +61,14 @@ source code, not from generic templates.
 | "Load test my API" | Read API spec → generate Locust users with weighted endpoints |
 | "Set up test infrastructure" | Scaffold conftest.py, pytest.ini, .env.example, directory layout |
 | "What's not tested?" | Compare handler code paths vs existing tests → report gaps |
-| "Run all tests" | 1-click: `python -m aws_test_plugin.scripts.run_tests all` (or `full` for E2E too) |
+| "Run all tests" | Use the requested categories; run AWS Emulator separately from the packaged offline runner |
 
 ## Test Categories
 
 | Category | Tool | Runs Locally | Needs Deploy |
 |----------|------|-------------|--------------|
 | Unit | pytest + mocks | Yes | No |
-| Integration | moto + pytest | Yes | No |
+| Integration | moto, testcontainers, or AWS Emulator + pytest | Yes | No |
 | Contract | jsonschema + pytest | Yes | No |
 | Performance | pytest-benchmark | Yes | No |
 | E2E | requests + pytest | No | Yes |
@@ -78,16 +78,17 @@ source code, not from generic templates.
 
 - The requested components and behaviors have corresponding tests
 - Tests cover relevant branches, boundaries, and errors found in the source
-- Tests pass locally with moto/testcontainers (no real AWS calls)
+- Local tests pass with the selected backend; report emulator fidelity gaps
 - Coverage satisfies the project's requirements; report remaining gaps explicitly
 - Performance benchmarks have defined thresholds
 - Load test locustfiles match API spec endpoints
 - Test data uses prefixes for easy cleanup (TEST-, E2E-TEST-, LOAD-TEST-)
-- conftest.py provides shared fixtures for all test types
+- Backend fixtures keep mocked, emulated, and deployed configuration separate
 - pytest.ini configures markers and test paths
 - No secrets, API keys, or tokens hardcoded in test files
 - .env.example documents required configuration variables
-- All offline tests can run in 1 click via `python -m aws_test_plugin.scripts.run_tests all`
+- Mocked offline categories run via `python -m aws_test_plugin.scripts.run_tests all`
+- AWS Emulator suites run separately using the integration skill's emulator reference
 - Installation guidance lists the required test dependency groups
 - Report executed, passed, failed, and skipped tests. Missing required coverage is incomplete.
 
@@ -95,6 +96,8 @@ source code, not from generic templates.
 
 - Never run tests against production without explicit user confirmation
 - Offline tests use moto or service stubs. Set fake credentials before handler imports.
+- AWS Emulator uses local generated credentials and HTTPS. Check operation fidelity,
+  endpoint, and identity before tests; keep its fixtures separate from moto.
 - Deployed tests use the selected identity, account, region, and resource targets.
 - Never store credentials, API keys, or tokens in test files
 - Never delete production data

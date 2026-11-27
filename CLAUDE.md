@@ -156,4 +156,5 @@ aws-test-plugin/
 - Never run E2E or load tests against production without confirmation.
 - Never hardcode secrets. Use `.env` (gitignored) or AWS Secrets Manager/SSM.
 - All test data uses prefixes: `TEST-`, `E2E-TEST-`, `LOAD-TEST-`.
-- Integration tests use moto — no real AWS calls.
+- Integration tests use the selected local backend. For AWS Emulator, follow the
+  integration skill's emulator reference and run separately from moto's fake keys.

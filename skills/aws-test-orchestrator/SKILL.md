@@ -23,6 +23,12 @@ Treat reference examples as patterns to adapt. Scaffold only missing infrastruct
 Run offline and deployed tests separately. A root pytest command can collect
 deployed tests, even when the request is only for unit tests.
 
+Choose the local integration backend explicitly. Reuse moto or testcontainers
+when they fit the existing suite. For requested AWS Emulator workflows, use the
+integration skill's emulator reference and a separately selected suite with its
+own generated credentials and HTTPS configuration. Keep mocked, emulated, and
+deployed runs separate.
+
 ## Step 1: Discover Project Components
 
 Before writing any test, map the project. Run these discovery steps.
@@ -119,6 +125,7 @@ Based on what the user asked, delegate to the appropriate skill:
 | "unit test", "test business logic", "branch coverage", "boundary test" | `aws-unit-testing` | Tests pure logic, every branch and boundary |
 | "E2E test", "end-to-end", "full workflow", "test the API" | `aws-e2e-testing` | Tests real deployed endpoints |
 | "integration test", "test with S3", "test with DynamoDB" | `aws-integration-testing` | Tests service + mocked AWS |
+| "AWS Emulator", "test locally with aws-emulator" | `aws-integration-testing` | Checks operation fidelity and runs a separate emulator suite |
 | "contract test", "schema test", "API contract" | `aws-contract-testing` | Validates schemas offline |
 | "performance", "benchmark", "latency", "memory" | `aws-perf-load-testing` | Benchmarks and profiling |
 | "load test", "stress test", "concurrent users" | `aws-perf-load-testing` | Locust-based load testing |
@@ -137,7 +144,8 @@ See [references/secrets-and-config.md](references/secrets-and-config.md) for ful
   - **Strategy B**: AWS Secrets Manager + SSM Parameter Store — production teams, shared secrets
 - **Deployed AWS credentials**: use the project's selected profile or CI role;
   verify the expected account, region, and resource targets before calls
-- Unit/integration/contract tests need only fake AWS credentials (`"testing"` via moto)
+- Unit, mocked integration, and contract tests use fake AWS credentials with mocks.
+  AWS Emulator tests use the instance's generated credentials and CA instead.
 - E2E/load tests obtain API secrets from `.env` or Secrets Manager / SSM.
   Report optional skips explicitly. Authentication failures and missing required
   configuration are failures, not passing coverage.
@@ -294,6 +302,9 @@ Prefer the project's existing harness. `full` can write deployed resources.
 `--base-url` is a load-only option; E2E reads component-specific configuration.
 The runner supplies offline credentials before collection and loads `.env` only
 for deployed categories. Direct pytest runs must enforce that boundary themselves.
+Run AWS Emulator suites with the project's command or direct pytest, separately
+from this runner's fake-credential offline categories. Use the integration skill's
+emulator reference for connection and identity checks.
 Missing suites, zero executed tests, and required skips are incomplete evidence.
 
 ## Step 6: Analyze & Fix
