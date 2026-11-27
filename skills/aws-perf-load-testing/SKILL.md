@@ -1,5 +1,6 @@
 ---
 name: aws-perf-load-testing
+license: Apache-2.0
 description: >
   Generate performance benchmarks and load tests for AWS Python services.
   Performance tests measure Lambda latency, memory usage, cold start time,
@@ -14,6 +15,12 @@ description: >
 # AWS Performance & Load Testing Skill
 
 Generate benchmarks and load tests by reading handler code and API specs.
+
+Reuse the project's benchmark and load-test commands. Keep mocked local benchmarks
+separate from deployed load tests. For load tests, verify the endpoint, identity,
+permitted operations, concurrency, duration, and owned cleanup resources first.
+Never target production without explicit confirmation. Treat examples as patterns
+for the requested components rather than a requirement to add every test category.
 
 ## Performance Tests (pytest-benchmark + tracemalloc)
 

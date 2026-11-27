@@ -2,7 +2,7 @@
 
 AI agent skills for generating comprehensive tests for **any AWS Python project** — Lambda, API Gateway, Step Functions, and Batch.
 
-Works with **Claude Code**, **GitHub Copilot**, and **OpenAI Codex**.
+Works with **Claude Code**, **GitHub Copilot**, **OpenAI Codex**, **CodeBuddy**, and **Qoder**.
 
 ## What It Does
 
@@ -17,6 +17,7 @@ Install this plugin into your AWS project, and your AI coding agent can:
 
 | Type | Tool | Needs Deploy? |
 |------|------|:---:|
+| Unit | pytest + mocks | No |
 | Integration | moto + pytest | No |
 | Contract | jsonschema + pytest | No |
 | Performance | pytest-benchmark | No |
@@ -50,6 +51,10 @@ Use `/reload-plugins` to pick up changes during development.
 
 ### Option 2: `npx skills add`
 
+This third-party installer runs code from npm. For repeatable setup, select a
+reviewed CLI version with `npx skills@<reviewed-version>` and a reviewed source
+revision. The Python CLI below installs the same skills without this npm tool.
+
 ```bash
 # Install skills into your project — auto-detects Claude Code, Copilot, Codex
 npx skills add whitewhiteqq/aws-test-plugin
@@ -60,7 +65,7 @@ Flags:
 ```bash
 npx skills add whitewhiteqq/aws-test-plugin --skill aws-e2e-testing   # Single skill
 npx skills add whitewhiteqq/aws-test-plugin --list                    # List skills
-npx skills add whitewhiteqq/aws-test-plugin -a copilot                # Copilot only
+npx skills add whitewhiteqq/aws-test-plugin -a qoder                  # Qoder only
 npx skills add whitewhiteqq/aws-test-plugin -g                        # Install globally
 ```
 
@@ -114,12 +119,15 @@ pip install "aws-test-plugin[perf] @ git+https://github.com/whitewhiteqq/aws-tes
 ## CLI Commands
 
 ```bash
-# Install skills for all agents (Claude Code + Copilot + Codex)
+# Install skills for all five agents
 aws-test-plugin init .
 
 # Install for specific agents only
 aws-test-plugin init . --agent claude
 aws-test-plugin init . --agent copilot
+aws-test-plugin init . --agent codebuddy
+aws-test-plugin init . --agent qoder
+aws-test-plugin init . --agent codex
 
 # List available skills
 aws-test-plugin list
@@ -128,26 +136,27 @@ aws-test-plugin list
 aws-test-plugin scaffold .
 ```
 
+Repeat `--agent` to select several agents. The default installs for all five.
+Existing files are preserved. Re-running `init` adds missing files; it does not
+replace customized or older skill files. Review installed copies when upgrading.
+
+CodeBuddy and Qoder use their native project skill directories, as documented by
+[CodeBuddy](https://www.codebuddy.ai/docs/cli/skills) and
+[Qoder](https://docs.qoder.com/extensions/skills). Restart or reload the host's
+skills after installation. These integrations share the same six skills and
+reference files. Their custom agent definitions are not installed.
+
 ## What Gets Installed
 
-Running `aws-test-plugin init .` creates:
+Running `aws-test-plugin init .` installs six skills and their references:
 
-```
-your-project/
-├── .claude/                          # Claude Code
-│   ├── skills/
-│   │   ├── aws-test-orchestrator/    # Master skill: discover → delegate
-│   │   ├── aws-e2e-testing/          # E2E patterns for API GW, SFN, Batch
-│   │   ├── aws-integration-testing/  # moto patterns for S3, DDB, RDS
-│   │   ├── aws-contract-testing/     # OpenAPI schema validation
-│   │   └── aws-perf-load-testing/    # Benchmarks + Locust load tests
-│   └── agents/
-│       └── aws-test-engineer.md      # Agent definition
-├── .github/                          # GitHub Copilot
-│   ├── skills/  (same skills)
-│   └── agents/  (same agent)
-└── AGENTS.md                         # OpenAI Codex instructions
-```
+| Agent | Project skills | Additional files |
+|-------|----------------|------------------|
+| Claude Code | `.claude/skills/` | `.claude/agents/aws-test-engineer.md` |
+| GitHub Copilot | `.github/skills/` | `.github/agents/aws-test-engineer.md` |
+| OpenAI Codex | `.agents/skills/` | `AGENTS.md`, if absent |
+| CodeBuddy | `.codebuddy/skills/` | None |
+| Qoder | `.qoder/skills/` | None |
 
 ## Usage
 
@@ -162,6 +171,25 @@ After installing, ask your AI agent:
 | "Load test my API at 100 users" | Reads spec → generates Locust users with weighted endpoints |
 | "Scaffold test directories" | Creates `tests/` with conftest.py, pytest.ini, layout |
 | "What's not tested?" | Compares code paths vs existing tests → reports gaps |
+
+The agent first reads your repository instructions, existing tests, fixtures,
+dependency locks, and CI commands. It keeps your layout and requested scope.
+Scaffolding is optional and preserves existing pytest configuration. Discovery
+skips common environment, dependency, cache, build, and test directories.
+
+For projects without a test runner, install the plugin into the project's Python
+environment and use `python -m aws_test_plugin.scripts.run_tests all` for offline
+categories. This runner supplies fake AWS credentials before test collection and
+does not load `.env` for offline runs. Use moto or service stubs to prevent real
+service calls. Fake credentials alone do not block network access.
+
+`e2e`, `full`, and `load` can access deployed resources. Select the target,
+AWS identity, region, and permitted operations before running them. `--base-url`
+applies only to `load`; E2E uses the project's component-specific configuration.
+Missing suites and empty collections do not count as passes. The report analyzer
+also reports empty or entirely skipped JUnit suites as incomplete.
+The runner owns JUnit output under `tests/reports/`, including when `--extra`
+contains another JUnit output option.
 
 ## How Test Generation Works
 
@@ -180,6 +208,7 @@ This plugin doesn't fill in templates — it reads your **actual code** and gene
 | Skill | Triggers When You Say | Reference Patterns |
 |-------|----------------------|------------|
 | `aws-test-orchestrator` | "test my project", "set up testing" | — |
+| `aws-unit-testing` | "unit tests", "branch coverage", "boundary tests" | Branches, boundaries, edge cases |
 | `aws-e2e-testing` | "E2E tests", "endpoint tests" | API Gateway, Step Function, Batch |
 | `aws-integration-testing` | "integration tests", "moto tests" | S3, DynamoDB, RDS/PostgreSQL |
 | `aws-contract-testing` | "contract tests", "schema validation" | OpenAPI validation |
@@ -187,15 +216,10 @@ This plugin doesn't fill in templates — it reads your **actual code** and gene
 
 ## Agent Compatibility
 
-| Feature | Claude Code | GitHub Copilot | OpenAI Codex |
-|---------|:-----------:|:--------------:|:------------:|
-| Native plugin system | ✓ `.claude-plugin/` | — | — |
-| Skills auto-loaded | ✓ `skills/` | ✓ `.github/skills/` | — |
-| Agent definitions | ✓ `agents/` | ✓ `.github/agents/` | — |
-| Project instructions | ✓ `CLAUDE.md` | ✓ `AGENTS.md` | ✓ `AGENTS.md` |
-| Marketplace distribution | ✓ plugin marketplace | — | — |
-| Triggered by description | ✓ | ✓ | — |
-| Reference files on-demand | ✓ | ✓ | — |
+All five agents receive portable `SKILL.md` files with reference material loaded
+as needed. Claude Code also supports the native `.claude-plugin/` distribution.
+The Python installer copies custom agent definitions only for Claude Code and
+GitHub Copilot. Codex, CodeBuddy, and Qoder use their native skill discovery.
 
 ## Project Structure
 
@@ -212,6 +236,9 @@ aws-test-plugin/
 ├── .python-version               # 3.12
 ├── skills/                       # Plugin skills (Claude Code auto-discovers)
 │   ├── aws-test-orchestrator/SKILL.md
+│   ├── aws-unit-testing/
+│   │   ├── SKILL.md
+│   │   └── references/           # branches, boundaries, edge cases
 │   ├── aws-e2e-testing/
 │   │   ├── SKILL.md
 │   │   └── references/           # api-gateway, step-function, batch
@@ -246,30 +273,30 @@ git clone https://github.com/whitewhiteqq/aws-test-plugin.git
 cd aws-test-plugin
 
 # Install with uv (creates .venv automatically)
-uv sync --locked
+uv sync --locked --group build --no-build --no-install-project
 
 # Run tests
-uv run pytest tests/ -v
+uv run --no-sync pytest tests/ -v
 
 # Lint
-uv run ruff check src tests
-uv run ruff format --check src tests
+uv run --no-sync ruff check src tests
+uv run --no-sync ruff format --check src tests
 
 # Type checking — ty is the primary checker (fast, replaces mypy)
-uv run ty check src
+uv run --no-sync ty check src
 
 # Type checking — mypy (secondary; kept for compatibility)
-uv run mypy src
+uv run --no-sync mypy src
 
 # Security scans
-uv run bandit -q -c pyproject.toml -r src
-uv run pip-audit
+uv run --no-sync bandit -q -c pyproject.toml -r src
+uv audit --locked --no-build
 
 # Verify lockfile is up to date (must pass before any commit)
-uv lock --check
+uv lock --check --no-build
 
 # Regenerate lockfile when pyproject.toml changes
-uv lock
+uv lock --no-build
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
@@ -285,7 +312,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## Requirements
 
 - Python 3.10+
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- [uv](https://docs.astral.sh/uv/) 0.13.10+ (recommended) or pip
+
+## Dependency and release security
+
+- The CLI has one runtime dependency, `defusedxml`, for safe XML parsing.
+  Install only the test extras you need. The `test` extra includes Moto support
+  for S3, DynamoDB, SQS, SNS, EventBridge, and Kinesis. Add other Moto service
+  extras in your project when needed.
+- This repository locks dependencies and build tools with hashes and a 14-day
+  package cooldown. Consumer projects must maintain their own locks. Review and
+  pin Git installs to a commit you trust rather than following a moving branch.
+- CI uses commit-pinned actions and wheel-only dependency installation. It audits
+  every dependency group and optional extra without executing dependency builds.
+  Weekly scans detect advisories published after an update.
+- Audits use the built-in `uv audit` command, which includes all groups and extras.
+  This preview command is tested with the exact uv version pinned in CI. Using it
+  avoids a separate scanner dependency tree. Sync also checks known malware
+  statuses through uv's audit service.
+- Release builds use locked build tools. A separate publishing job gets the
+  PyPI OIDC permission and attests the resulting artifacts. Releases require an
+  annotated version tag on `main` history.
+- `uv` 0.13.10 is an explicit security update for
+  [GHSA-vjvj-3m3f-fgmm](https://github.com/astral-sh/uv/security/advisories/GHSA-vjvj-3m3f-fgmm).
+  The package cooldown remains enabled. Scans identify known vulnerabilities;
+  they cannot prove that a dependency is free of malicious code.
 
 ## License
 

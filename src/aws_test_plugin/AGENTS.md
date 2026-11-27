@@ -1,66 +1,60 @@
-# AWS Test Plugin — Agent Instructions
+# AWS Test Plugin: agent instructions
 
-This project uses `aws-test-plugin` to generate comprehensive tests
-for AWS Python projects (Lambda, API Gateway, Step Functions, Batch).
+This project uses `aws-test-plugin` skills for AWS Python tests, including Lambda,
+API Gateway, Step Functions, and Batch.
 
-## Available Test Types
+## Choose the existing workflow first
 
-| Type | Tool | Local | Deployed |
-|------|------|-------|----------|
-| Unit | pytest + mocks | Yes | No |
-| Integration | moto + pytest | Yes | No |
-| Contract | jsonschema + pytest | Yes | No |
-| Performance | pytest-benchmark | Yes | No |
-| E2E | requests + pytest | No | Yes |
-| Load | Locust | No | Yes |
+1. Read the repository instructions, tests, fixtures, dependency locks, and CI.
+2. Use the component's Python environment and test commands. Preserve its layout.
+3. Read the selected handler, event schema, and service calls before generating tests.
+4. Generate and run only the requested components and test categories.
+5. Report what executed, passed, failed, or skipped. Missing required tests are incomplete.
 
-## Testing Workflow
+The six installed skills contain category-specific patterns and reference files.
+Codex discovers these under `.agents/skills/`. Other supported hosts use their
+native project skill directories. This file supplements existing project rules.
 
-1. **Discover** — scan for Lambda handlers (`main.py`, `handler.py`), Batch jobs
-   (`Dockerfile`), Step Functions (`*.asl.json`), API specs (`swagger.yml`)
-2. **Read code** — analyze handler source for branches, AWS calls, validation
-3. **Generate tests** — create test files covering every code path, branch, and boundary
-4. **Run** — `python scripts/run_tests.py all` (1-click for all offline tests)
-5. **Fix** — read failures, adjust test logic, re-run
+## Test categories
 
-## Secrets Management
+| Category | Tool | Deployed access |
+|----------|------|-----------------|
+| Unit | pytest and mocks | No |
+| Integration | moto or testcontainers | No AWS access |
+| Contract | jsonschema and pytest | No |
+| Performance | pytest-benchmark | No for mocked local benchmarks |
+| E2E | requests or boto3 | Yes |
+| Load | Locust | Yes |
 
-- **Never** hardcode API keys, tokens, or passwords in test files
-- Two strategies available (see secrets-and-config.md for full details):
-  - **Strategy A**: `.env` files (gitignored) — secrets loaded via `os.getenv()` with `pytest.skip()` fallback
-  - **Strategy B**: AWS Secrets Manager + SSM Parameter Store — secrets retrieved via `boto3` with `pytest.skip()` fallback
-- **AWS credentials**: use the default AWS profile (`~/.aws/credentials`) — boto3 picks it up automatically
-- Unit/integration/contract tests work with fake `"testing"` credentials (moto) — no real AWS access needed
-- E2E/load tests load real credentials from `.env` or Secrets Manager depending on chosen strategy
+## Commands for projects without an existing harness
 
-## Commands
+Install the plugin into the project's Python environment before using its modules.
+Use the existing project harness when available.
 
 ```bash
-# Scaffold test directories + .env.example
 aws-test-plugin scaffold .
+python -m aws_test_plugin.scripts.run_tests all
+python -m aws_test_plugin.scripts.run_tests unit
+python -m aws_test_plugin.scripts.analyze_results tests/reports/
 
-# 1-click: run ALL offline tests (unit + integration + contract + performance)
-python scripts/run_tests.py all
-
-# 1-click: run EVERYTHING (offline + E2E; tests self-skip if env vars missing)
-python scripts/run_tests.py full
-
-# Individual categories
-pytest tests/unit/ -m unit -v --cov=src/ --cov-branch
-pytest tests/integration/ -m integration -v
-pytest tests/contract/ -m contract -v
-pytest tests/performance/ -m performance --benchmark-enable
-pytest tests/e2e/ -m e2e -v  # reads API_BASE_URL from .env
-
-# Load tests (requires deployed API)
-locust -f tests/load/locustfile.py --host=$LOAD_TEST_HOST \
-  --users=50 --spawn-rate=5 --run-time=5m --headless
+# Deployed tests: select the target and permitted operations first.
+python -m aws_test_plugin.scripts.run_tests e2e
+python -m aws_test_plugin.scripts.run_tests load --base-url https://test.example --users 50 --duration 5m
 ```
 
-## Safety
+`all` runs offline categories in separate processes. `full` also runs E2E and can
+write deployed resources. `--base-url` applies only to load tests; E2E reads the
+project's component-specific configuration. Missing suites are not passes.
 
-- Never run E2E or load tests against production without confirmation
-- All test data uses prefixes: `TEST-`, `E2E-TEST-`, `LOAD-TEST-`
-- Integration tests use moto (no real AWS calls)
-- Load tests must have `--run-time` set
-- No secrets in test files — use `.env` (gitignored) or AWS Secrets Manager / SSM Parameter Store
+## Safety and secrets
+
+- Use fake AWS credentials with moto or service stubs for offline tests.
+  Configure them before importing handlers. Fake keys alone do not block requests.
+- Keep deployed credentials and `.env` loading out of shared offline fixtures.
+- Select the AWS profile or CI role, expected account, region, and resource targets
+  before deployed tests. Use the project's existing verification procedure.
+- Never run E2E or load tests against production without explicit confirmation.
+- Keep API secrets in ignored local environment files or Secrets Manager/SSM.
+  Never print them in reports or hardcode them in tests.
+- Bound load duration. Clean up only resources created and recorded by this run.
+- Follow the orchestrator's `references/secrets-and-config.md` for configuration examples.

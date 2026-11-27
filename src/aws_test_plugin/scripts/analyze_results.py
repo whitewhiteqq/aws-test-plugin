@@ -51,6 +51,7 @@ def analyze_junit(xml_path: Path) -> dict:
         "failed": errors + failures,
         "skipped": skipped,
         "failed_tests": failed_tests,
+        "status": "FAIL" if errors + failures else "INCOMPLETE" if total == skipped else "PASS",
     }
 
 
@@ -112,8 +113,7 @@ def analyze_benchmark(json_path: Path) -> dict:
 def print_junit_report(result: dict):
     """Print JUnit analysis."""
     print(f"\n--- {result['file']} ---")
-    status = "PASS" if result["failed"] == 0 else "FAIL"
-    print(f"  Status: {status}")
+    print(f"  Status: {result['status']}")
     print(
         f"  Total: {result['total']}  "
         f"Passed: {result['passed']}  "
@@ -178,26 +178,36 @@ def main():
     print("=" * 60)
 
     has_failures = False
+    has_incomplete = False
+    reports_found = False
 
     # JUnit XML files
     for xml_file in sorted(reports_dir.glob("*_results.xml")):
+        reports_found = True
         result = analyze_junit(xml_file)
         print_junit_report(result)
         if result["failed"] > 0:
             has_failures = True
+        if result["status"] == "INCOMPLETE":
+            has_incomplete = True
 
     # Locust CSV files
     for csv_file in sorted(reports_dir.glob("*_stats.csv")):
+        reports_found = True
         result = analyze_locust(csv_file)
         print_locust_report(result)
 
     # Benchmark JSON files
     for json_file in sorted(reports_dir.glob("*benchmark*.json")):
+        reports_found = True
         result = analyze_benchmark(json_file)
         print_benchmark_report(result)
 
     print(f"\n{'=' * 60}")
-    if has_failures:
+    if not reports_found or has_incomplete:
+        print("RESULT: INCOMPLETE. No reports or no executed tests in a suite.")
+        sys.exit(1)
+    elif has_failures:
         print("RESULT: Some tests failed. See details above.")
         sys.exit(1)
     else:

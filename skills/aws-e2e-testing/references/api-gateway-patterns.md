@@ -1,5 +1,10 @@
 # API Gateway E2E Test Patterns
 
+Use the project's verified deployed session and target checks before adapting
+these examples. See [deployed AWS session](aws-session.md).
+Keep offline credential fixtures out of this suite. A resource prefix alone does
+not prove cleanup ownership. Do not convert authentication failures to skips.
+
 Ready-to-use patterns for testing API Gateway-backed Lambda functions end-to-end.
 
 Each test module targets **one component** (e.g., `orders-api`, `users-api`).
@@ -43,28 +48,30 @@ def api():
 
 ### Strategy B: AWS Secrets Manager / SSM Parameter Store
 
+Put these helpers and the `api` fixture in `tests/e2e/conftest.py`, after the
+verified `_aws_session()` helper from the linked configuration reference.
+
 ```python
 """E2E lifecycle test for {component_name} REST API."""
 import os
 import uuid
 import pytest
 import requests
-import boto3
 
 # Component prefix for env var overrides.
 # Secret/param names in AWS vary by project — adapt to YOUR naming convention.
 COMPONENT = "{COMPONENT}"  # e.g. "ORDERS_API"
 
-_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+# Define _aws_session() in the deployed conftest using the linked verified-session pattern.
 
 
 def _get_secret(name: str) -> str:
-    client = boto3.client("secretsmanager", region_name=_REGION)
+    client = _aws_session().client("secretsmanager")
     return client.get_secret_value(SecretId=name)["SecretString"]
 
 
 def _get_parameter(name: str, decrypt: bool = False) -> str:
-    client = boto3.client("ssm", region_name=_REGION)
+    client = _aws_session().client("ssm")
     return client.get_parameter(Name=name, WithDecryption=decrypt)["Parameter"]["Value"]
 
 
@@ -75,10 +82,7 @@ def _resolve(env_var: str, aws_name: str | None = None, *, source: str = "ssm") 
         return value
     if not aws_name:
         return None
-    try:
-        return _get_secret(aws_name) if source == "secret" else _get_parameter(aws_name)
-    except Exception:
-        return None
+    return _get_secret(aws_name) if source == "secret" else _get_parameter(aws_name)
 
 
 pytestmark = [

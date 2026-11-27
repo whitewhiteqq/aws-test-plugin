@@ -1,5 +1,6 @@
 ---
 name: aws-test-orchestrator
+license: Apache-2.0
 description: >
   Master skill for testing AWS Python projects. Discovers project components
   (Lambda, API Gateway, Step Functions, Batch), reads handler code logic,
@@ -13,13 +14,23 @@ description: >
 
 Master coordination skill. Discovers the project, delegates to category-specific skills.
 
+## Start with the project's workflow
+
+Read repository instructions, existing test fixtures, dependency locks, and CI
+commands before choosing a test command. Use the component's Python environment
+and existing test layout. Generate only the categories and components requested.
+Treat reference examples as patterns to adapt. Scaffold only missing infrastructure.
+Run offline and deployed tests separately. A root pytest command can collect
+deployed tests, even when the request is only for unit tests.
+
 ## Step 1: Discover Project Components
 
 Before writing any test, map the project. Run these discovery steps.
 
 ### Derive the Component Prefix
 
-Every component gets a **unique env var prefix** to avoid collisions in monorepos.
+Reuse existing configuration names. When a project has no convention, give each
+component a **unique env var prefix** to avoid collisions in monorepos.
 Derive it from the service directory name, uppercased with hyphens replaced by
 underscores:
 
@@ -111,7 +122,8 @@ Based on what the user asked, delegate to the appropriate skill:
 | "contract test", "schema test", "API contract" | `aws-contract-testing` | Validates schemas offline |
 | "performance", "benchmark", "latency", "memory" | `aws-perf-load-testing` | Benchmarks and profiling |
 | "load test", "stress test", "concurrent users" | `aws-perf-load-testing` | Locust-based load testing |
-| "all tests", "full test suite", "scaffold tests" | All skills | Run discovery → scaffold → generate |
+| "all tests", "full test suite" | Requested categories | Inspect the existing harness and distinguish offline from deployed runs |
+| "scaffold tests" | Orchestrator | Add missing infrastructure while preserving the project's configuration |
 
 ## Secrets & Configuration
 
@@ -123,9 +135,12 @@ See [references/secrets-and-config.md](references/secrets-and-config.md) for ful
 - Two strategies for managing secrets (see [references/secrets-and-config.md](references/secrets-and-config.md)):
   - **Strategy A**: `.env` files (gitignored) + `os.getenv()` — quick local dev
   - **Strategy B**: AWS Secrets Manager + SSM Parameter Store — production teams, shared secrets
-- **AWS credentials**: use the default AWS profile (`~/.aws/credentials`) — accessed via `boto3` automatically
+- **Deployed AWS credentials**: use the project's selected profile or CI role;
+  verify the expected account, region, and resource targets before calls
 - Unit/integration/contract tests need only fake AWS credentials (`"testing"` via moto)
-- E2E/load tests load real credentials from `.env` or Secrets Manager / SSM with `pytest.skip()` fallback
+- E2E/load tests obtain API secrets from `.env` or Secrets Manager / SSM.
+  Report optional skips explicitly. Authentication failures and missing required
+  configuration are failures, not passing coverage.
 - Scaffold generates `.env.example` (committed) and `.gitignore` entry for `.env`
 
 ## Step 3: Read Code and Generate Tests
@@ -205,7 +220,7 @@ from unittest.mock import MagicMock
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # --- Environment fixtures ---
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def clean_env(monkeypatch):
     """Reset env vars between tests."""
     # Set each env var discovered in Step 1
@@ -266,20 +281,27 @@ def api_schemas(api_spec):
 ### Using the Orchestrator Script
 
 ```bash
-python scripts/run_tests.py unit                 # Unit tests only
-python scripts/run_tests.py contract             # Run one category
-python scripts/run_tests.py all                  # All offline categories (unit+contract+integration+performance)
-python scripts/run_tests.py e2e                  # E2E (tests self-skip if per-component env vars missing)
-python scripts/run_tests.py load --users 100     # Load test (requires --base-url or LOAD_TEST_HOST)
-python scripts/run_tests.py full                 # Everything: offline + E2E (tests self-skip if secrets unavailable)
+python -m aws_test_plugin.scripts.run_tests unit                 # Unit tests only
+python -m aws_test_plugin.scripts.run_tests contract             # Run one category
+python -m aws_test_plugin.scripts.run_tests all                  # All offline categories (unit+contract+integration+performance)
+python -m aws_test_plugin.scripts.run_tests e2e                  # Deployed E2E; configure the target first
+python -m aws_test_plugin.scripts.run_tests load --users 100     # Load test (requires --base-url or LOAD_TEST_HOST)
+python -m aws_test_plugin.scripts.run_tests full                 # Offline + deployed E2E; configure the target first
 ```
+
+These module commands require the plugin in the project's Python environment.
+Prefer the project's existing harness. `full` can write deployed resources.
+`--base-url` is a load-only option; E2E reads component-specific configuration.
+The runner supplies offline credentials before collection and loads `.env` only
+for deployed categories. Direct pytest runs must enforce that boundary themselves.
+Missing suites, zero executed tests, and required skips are incomplete evidence.
 
 ## Step 6: Analyze & Fix
 
 ### Parse Results
 ```bash
-python scripts/analyze_results.py                # All reports
-python scripts/analyze_results.py --json          # Machine-readable
+python -m aws_test_plugin.scripts.analyze_results                # All reports
+python -m aws_test_plugin.scripts.analyze_results tests/reports/
 ```
 
 ### Failure Classification

@@ -1,5 +1,6 @@
 ---
 name: aws-contract-testing
+license: Apache-2.0
 description: >
   Generate contract tests that validate API schemas, request/response shapes,
   required fields, security definitions, and step function input/output
