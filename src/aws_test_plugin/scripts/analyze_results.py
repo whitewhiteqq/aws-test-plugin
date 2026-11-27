@@ -196,12 +196,19 @@ def main():
         reports_found = True
         result = analyze_locust(csv_file)
         print_locust_report(result)
+        aggregated = result["aggregated"]
+        if aggregated is None or aggregated["requests"] <= 0:
+            has_incomplete = True
+        if aggregated is not None and aggregated["failures"] > 0:
+            has_failures = True
 
     # Benchmark JSON files
     for json_file in sorted(reports_dir.glob("*benchmark*.json")):
         reports_found = True
         result = analyze_benchmark(json_file)
         print_benchmark_report(result)
+        if not any(benchmark["rounds"] > 0 for benchmark in result["benchmarks"]):
+            has_incomplete = True
 
     print(f"\n{'=' * 60}")
     if not reports_found or has_incomplete:

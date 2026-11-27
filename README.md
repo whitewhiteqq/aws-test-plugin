@@ -18,7 +18,7 @@ Install this plugin into your AWS project, and your AI coding agent can:
 | Type | Tool | Needs Deploy? |
 |------|------|:---:|
 | Unit | pytest + mocks | No |
-| Integration | moto + pytest | No |
+| Integration | moto, testcontainers, or AWS Emulator + pytest | No |
 | Contract | jsonschema + pytest | No |
 | Performance | pytest-benchmark | No |
 | E2E | requests + pytest | Yes |
@@ -165,6 +165,7 @@ After installing, ask your AI agent:
 | Request | What Happens |
 |---------|-------------|
 | "Write integration tests for my Lambda" | Reads handler code → generates moto tests for all branches |
+| "Test my workflow with AWS Emulator" | Checks operation fidelity, configures the local backend, and generates emulator tests |
 | "Create E2E tests for my API" | Finds spec → reads handlers → generates endpoint tests |
 | "Test my Step Function" | Finds ASL definition → reads state handlers → tests flow |
 | "Benchmark my handler" | Reads handler → mocks deps → pytest-benchmark tests |
@@ -191,13 +192,23 @@ also reports empty or entirely skipped JUnit suites as incomplete.
 The runner owns JUnit output under `tests/reports/`, including when `--extra`
 contains another JUnit output option.
 
+### Optional AWS Emulator tests
+
+The integration skill supports [AWS Emulator](https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-agent.html)
+for local AWS API workflows. Read its
+[emulator reference](skills/aws-integration-testing/references/aws-emulator.md)
+for compatibility checks, reviewed setup, generated credentials, and HTTPS.
+Run emulator tests separately with the project's command or direct pytest.
+The packaged offline runner supplies fake keys that the emulator rejects.
+Emulator setup is optional; it adds no plugin dependency or automatic installer.
+
 ## How Test Generation Works
 
 This plugin doesn't fill in templates — it reads your **actual code** and generates tests based on:
 
 1. **Handler signatures** — event shapes, input parameters
 2. **Branching logic** — if/else, try/except → one test per code path
-3. **AWS service calls** — which boto3 clients → mock them with moto
+3. **AWS service calls** — identify boto3 operations and test the selected local backend
 4. **Validation rules** — pydantic models, manual checks → test valid + invalid
 5. **Error handling** — exceptions caught/raised → verify error responses
 6. **Return shapes** — response structures → contract assertions
@@ -210,7 +221,7 @@ This plugin doesn't fill in templates — it reads your **actual code** and gene
 | `aws-test-orchestrator` | "test my project", "set up testing" | — |
 | `aws-unit-testing` | "unit tests", "branch coverage", "boundary tests" | Branches, boundaries, edge cases |
 | `aws-e2e-testing` | "E2E tests", "endpoint tests" | API Gateway, Step Function, Batch |
-| `aws-integration-testing` | "integration tests", "moto tests" | S3, DynamoDB, RDS/PostgreSQL |
+| `aws-integration-testing` | "integration tests", "moto tests", "AWS Emulator" | S3, DynamoDB, RDS/PostgreSQL, emulator setup |
 | `aws-contract-testing` | "contract tests", "schema validation" | OpenAPI validation |
 | `aws-perf-load-testing` | "benchmark", "load test", "Locust" | Benchmark, Locust |
 

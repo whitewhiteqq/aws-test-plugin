@@ -4,9 +4,9 @@ Keep credentials and secrets out of source, reports, logs, and command history.
 Use the project's existing configuration names and secret storage. The component
 prefix examples below are a fallback when no convention exists.
 
-## Separate offline and deployed runs
+## Separate mocked, emulated, and deployed runs
 
-Unit, integration, contract, and local performance tests use fake credentials
+Unit, mocked integration, contract, and local performance tests use fake credentials
 with moto or service stubs. Set credentials before importing handlers that create
 AWS clients. Fake credentials alone do not prevent HTTP or AWS requests.
 
@@ -15,6 +15,12 @@ pytest collection. It does not load `.env` for offline categories. When using
 pytest directly, configure the same boundary in the project's offline harness.
 Request the scaffold's `aws_env_vars` fixture before constructing mocked clients.
 Do not make this fixture autouse across a mixed offline and E2E suite.
+
+AWS Emulator uses generated credentials and a CA for each local instance. Run
+its suite in a separate process without deployed credentials or mock fixtures.
+The packaged offline runner overwrites those credentials with fake keys, so use
+the project's emulator command or direct pytest instead. Follow the integration
+skill's `references/aws-emulator.md` for endpoint, TLS, and identity checks.
 
 Run deployed tests separately. Select the endpoint, resource ARNs, account,
 region, and profile or CI role before execution. Review the selected tests for
@@ -136,7 +142,7 @@ separately, including any required scenarios that could not run.
 
 ## CI and dependency setup
 
-Keep offline jobs free of deployed secrets and AWS roles. Use a separate job for
+Keep mocked and emulator jobs free of deployed secrets and AWS roles. Use a separate job for
 deployed tests, the project's existing approval rules, and a role scoped to the
 selected environment. Prefer short-lived OIDC credentials over stored AWS keys.
 Pin workflow actions to reviewed commit SHAs.
