@@ -1,3 +1,3 @@
 """aws-test-plugin — AI-powered test generation for AWS Python projects."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
